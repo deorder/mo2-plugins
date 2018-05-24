@@ -10,9 +10,9 @@ import PyQt5.QtGui as QtGui
 import PyQt5.QtCore as QtCore
 import PyQt5.QtWidgets as QtWidgets
 
-from QtCore import Qt
-from QtCore import qDebug
-from QtCore import QCoreApplication
+from PyQt5.QtCore import Qt
+from PyQt5.QtCore import qDebug
+from PyQt5.QtCore import QCoreApplication
 
 class PluginWindow(QtWidgets.QDialog):
 
