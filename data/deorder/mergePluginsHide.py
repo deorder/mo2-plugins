@@ -12,6 +12,7 @@ import PyQt5.QtWidgets as QtWidgets
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtCore import qDebug
+from PyQt5.QtCore import qCritical
 from PyQt5.QtCore import QCoreApplication
 
 class PluginWindow(QtWidgets.QDialog):
@@ -102,14 +103,6 @@ class PluginWindow(QtWidgets.QDialog):
     def getPluginNames(self):
         return self.__organizer.pluginList().pluginNames()
 
-    def getPluginStateByName(self, name):
-        pluginInfo = self.__pluginInfo[name]
-        if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']))):
-            return Dc.PluginState(Dc.PluginState.ACTIVE)
-        if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))):
-            return Dc.PluginState(Dc.PluginState.INACTIVE)
-        return Dc.PluginState(Dc.PluginState.MISSING)
-
     def getPluginStateByNameFromMO2(self, name):
         return Dc.PluginState(self.__organizer.pluginList().state(name))
 
@@ -117,7 +110,7 @@ class PluginWindow(QtWidgets.QDialog):
         return [self.getModByName(modname) for modname in self.getModNames()]
 
     def isMergedMod(self, mod):
-        for path in glob.glob(os.path.join(mod.absolutePath(), "merge", "*_plugins.txt")):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
             if os.path.isfile(path):
                 return True
         return False
@@ -126,27 +119,36 @@ class PluginWindow(QtWidgets.QDialog):
         return [mod for mod in self.getMods() if self.isMergedMod(mod)]
 
     def getMergedModPlugins(self, mod):
-        for path in glob.glob(os.path.join(mod.absolutePath(), "merge", "*_plugins.txt")):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
             if os.path.isfile(path):
                 return Dc.readLines(path)
         return []
 
+    def getPluginStateByName(self, name):
+        if name in self.__pluginInfo:
+            pluginInfo = self.__pluginInfo[name]
+            if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']))):
+                return Dc.PluginState(Dc.PluginState.ACTIVE)
+            if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))):
+                return Dc.PluginState(Dc.PluginState.INACTIVE)
+        return Dc.PluginState(Dc.PluginState.MISSING)
+
     def getMergedModPluginsState(self, name):
-        plugins = self.__mergedModInfo[name]['plugins']
-        pluginstates = [self.getPluginStateByName(plugin) for plugin in plugins]
-        if(all((pluginstate in [Dc.PluginState.ACTIVE]) for pluginstate in pluginstates)):
-            return Dc.ModPluginsState.ACTIVE
-        elif(all((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
-            return Dc.ModPluginsState.INACTIVE
-        elif(any((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
-            return Dc.ModPluginsState.MIXED
-        else:
-            return Dc.ModPluginsState.UNKNOWN
+        if name in self.__mergedModInfo:
+            plugins = self.__mergedModInfo[name]['plugins']
+            pluginstates = [self.getPluginStateByName(plugin) for plugin in plugins]
+            if(all((pluginstate in [Dc.PluginState.ACTIVE]) for pluginstate in pluginstates)):
+                return Dc.ModPluginsState.ACTIVE
+            elif(all((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
+                return Dc.ModPluginsState.INACTIVE
+            elif(any((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
+                return Dc.ModPluginsState.MIXED
+        return Dc.ModPluginsState.UNKNOWN
 
     def addMergedModInfoFromMod(self, mod):
         patterns = ['*.esp', '*.esm', '*.esp.mohidden', '*.esm.mohidden']
         for pattern in patterns:
-            for path in glob.glob(os.path.join(mod.absolutePath(), pattern)):
+            for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), pattern)):
                 filename = os.path.basename(path).replace('.mohidden', '')
                 self.__mergedModInfo[mod.name()] = {
                     'name': mod.name(),
@@ -158,7 +160,7 @@ class PluginWindow(QtWidgets.QDialog):
     def addPluginInfoFromMod(self, mod):
         patterns = ['*.esp', '*.esm', '*.esp.mohidden', '*.esm.mohidden']
         for pattern in patterns:
-            for path in glob.glob(os.path.join(mod.absolutePath(), pattern)):
+            for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), pattern)):
                 filename = os.path.basename(path).replace('.mohidden', '')
                 self.__pluginInfo[filename] = {
                     'filename': filename,
@@ -169,7 +171,7 @@ class PluginWindow(QtWidgets.QDialog):
     def addPluginInfoFromParams(self, modPath, modState):
         patterns = ['*.esp', '*.esm', '*.esp.mohidden', '*.esm.mohidden']
         for pattern in patterns:
-            for path in glob.glob(os.path.join(modPath, pattern)):
+            for path in glob.glob(os.path.join(Dc.globEscape(modPath), pattern)):
                 filename = os.path.basename(path).replace('.mohidden', '')
                 self.__pluginInfo[filename] = {
                     'filename': filename,
@@ -226,19 +228,23 @@ class PluginWindow(QtWidgets.QDialog):
 
             action = menu.exec_(self.mergedModList.mapToGlobal(position))
 
-            if action == enableAction:
-                for selectedMod in selectedModsWithEnabled:
-                    for plugin in self.__mergedModInfo[selectedMod]['plugins']:
-                        pluginInfo = self.__pluginInfo[plugin]
-                        self.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'), os.path.join(pluginInfo['dirname'], pluginInfo['filename']))
-                self.refreshMergedModList()
+            # Catch and log exceptional side-effects
+            try:
+                if action == enableAction:
+                    for selectedMod in selectedModsWithEnabled:
+                        for plugin in self.__mergedModInfo[selectedMod]['plugins']:
+                            pluginInfo = self.__pluginInfo[plugin]
+                            self.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'), os.path.join(pluginInfo['dirname'], pluginInfo['filename']))
+                    self.refreshMergedModList()
 
-            if action == disableAction:
-                for selectedMod in selectedModsWithDisabled:
-                    for plugin in self.__mergedModInfo[selectedMod]['plugins']:
-                        pluginInfo = self.__pluginInfo[plugin]
-                        self.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))
-                self.refreshMergedModList()
+                if action == disableAction:
+                    for selectedMod in selectedModsWithDisabled:
+                        for plugin in self.__mergedModInfo[selectedMod]['plugins']:
+                            pluginInfo = self.__pluginInfo[plugin]
+                            self.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))
+                    self.refreshMergedModList()
+            except Exception, e:
+                qCritical(e.message)
 
 class PluginTool(mobase.IPluginTool):
 

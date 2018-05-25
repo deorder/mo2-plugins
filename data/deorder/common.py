@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import glob
 
@@ -68,6 +69,11 @@ class ModState:
         return (self.value & x) == x
     def __str__(self):
         return ', '.join([self.__info[x] for x in self.__info.keys() if (x in self)])
+
+globEscapeRegExp = r'([' + re.escape('[]?*') + '])'
+
+def globEscape(text):
+    return re.sub(globEscapeRegExp, r'[\1]', text)
 
 def readLines(filename):
     lines = []
