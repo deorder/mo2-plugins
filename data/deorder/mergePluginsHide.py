@@ -12,6 +12,7 @@ import PyQt5.QtWidgets as QtWidgets
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtCore import qDebug
+from PyQt5.QtCore import qWarning
 from PyQt5.QtCore import qCritical
 from PyQt5.QtCore import QCoreApplication
 
@@ -131,6 +132,8 @@ class PluginWindow(QtWidgets.QDialog):
                 return Dc.PluginState(Dc.PluginState.ACTIVE)
             if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))):
                 return Dc.PluginState(Dc.PluginState.INACTIVE)
+        else:
+            qWarning(self.__tr("Plugin {} missing".format(name)))
         return Dc.PluginState(Dc.PluginState.MISSING)
 
     def getMergedModPluginsState(self, name):
@@ -143,6 +146,8 @@ class PluginWindow(QtWidgets.QDialog):
                 return Dc.ModPluginsState.INACTIVE
             elif(any((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
                 return Dc.ModPluginsState.MIXED
+        else:
+            qWarning(self.__tr("Merged mod {} missing".format(name)))
         return Dc.ModPluginsState.UNKNOWN
 
     def addMergedModInfoFromMod(self, mod):
