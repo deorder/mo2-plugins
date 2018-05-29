@@ -3,6 +3,7 @@
 ## Description
 
 - **Merge Plugins Hide**: Hide / unhide plugins that were merged using `Merge Plugins`
+- **Sync Mod Order**: Sync mod order from current profile to another while keeping the (enabled/disabled) state intact
 
 ## Installation
 

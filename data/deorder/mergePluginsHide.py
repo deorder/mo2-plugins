@@ -71,7 +71,7 @@ class PluginWindow(QtWidgets.QDialog):
         self.setLayout(verticalLayout)
 
         # Build lookup dictionary of all plugins
-        for mod in self.getMods():
+        for mod in Dc.getMods(self.__organizer):
             self.addPluginInfoFromMod(mod)
 
         # Build lookup dictionary of all merged mods
@@ -83,33 +83,6 @@ class PluginWindow(QtWidgets.QDialog):
 
         self.refreshMergedModList()
 
-    def tryMoveFile(self, source, target):
-        qDebug("Moving {} to {}".format(source, target))
-        try:
-            # Attempt renaming file even if it does not exist
-            os.rename(source, target)
-        except:
-            # Ignore exception
-            pass
-
-    def getModByName(self, name):
-        return self.__organizer.getMod(name)
-
-    def getModStateByName(self, name):
-        return Dc.ModState(self.__organizer.modList().state(name))
-
-    def getModNames(self):
-        return self.__organizer.modList().allMods()
-
-    def getPluginNames(self):
-        return self.__organizer.pluginList().pluginNames()
-
-    def getPluginStateByNameFromMO2(self, name):
-        return Dc.PluginState(self.__organizer.pluginList().state(name))
-
-    def getMods(self):
-        return [self.getModByName(modname) for modname in self.getModNames()]
-
     def isMergedMod(self, mod):
         for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
             if os.path.isfile(path):
@@ -117,7 +90,7 @@ class PluginWindow(QtWidgets.QDialog):
         return False
 
     def getMergedMods(self):
-        return [mod for mod in self.getMods() if self.isMergedMod(mod)]
+        return [mod for mod in Dc.getMods(self.__organizer) if self.isMergedMod(mod)]
 
     def getMergedModPlugins(self, mod):
         for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
@@ -159,7 +132,7 @@ class PluginWindow(QtWidgets.QDialog):
                     'name': mod.name(),
                     'path': mod.absolutePath(),
                     'plugins': self.getMergedModPlugins(mod),
-                    'state': self.getModStateByName(mod.name())
+                    'state': Dc.getModStateByName(self.__organizer, mod.name())
                 }
 
     def addPluginInfoFromMod(self, mod):
@@ -170,7 +143,7 @@ class PluginWindow(QtWidgets.QDialog):
                 self.__pluginInfo[filename] = {
                     'filename': filename,
                     'dirname': os.path.dirname(path),
-                    'state': self.getModStateByName(mod.name())
+                    'state': Dc.getModStateByName(self.__organizer, mod.name())
                 }
 
     def addPluginInfoFromParams(self, modPath, modState):
@@ -239,14 +212,14 @@ class PluginWindow(QtWidgets.QDialog):
                     for selectedMod in selectedModsWithEnabled:
                         for plugin in self.__mergedModInfo[selectedMod]['plugins']:
                             pluginInfo = self.__pluginInfo[plugin]
-                            self.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'), os.path.join(pluginInfo['dirname'], pluginInfo['filename']))
+                            Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'), os.path.join(pluginInfo['dirname'], pluginInfo['filename']))
                     self.refreshMergedModList()
 
                 if action == disableAction:
                     for selectedMod in selectedModsWithDisabled:
                         for plugin in self.__mergedModInfo[selectedMod]['plugins']:
                             pluginInfo = self.__pluginInfo[plugin]
-                            self.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))
+                            Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))
                     self.refreshMergedModList()
             except Exception, e:
                 qCritical(e.message)
