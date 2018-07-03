@@ -95,7 +95,7 @@ def readLines(filename):
     return lines
 
 def ensureUnicode(text):
-    return text.encode('utf8') if isinstance(text, unicode) else text.decode('utf8')
+    return text.encode('utf8') if isinstance(text, unicode) else text
 
 def getModByName(organizer, name):
     return organizer.getMod(name)

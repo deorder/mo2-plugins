@@ -132,7 +132,7 @@ class PluginWindow(QtWidgets.QDialog):
                         modListPath = os.path.join(profileInfo['path'], 'modlist.txt')
                         modListBackupPath = modListPath + '.' +  datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
 
-                        qDebug(self.__tr(u"Backing up to {}".format(Dc.ensureUnicode(modListBackupPath))))
+                        qDebug(self.__tr("Backing up to {}".format(Dc.ensureUnicode(modListBackupPath))))
                         shutil.copy(modListPath, modListBackupPath)
 
                         selectedModListInfo = self.getModListInfoByPath(modListPath)
@@ -141,7 +141,7 @@ class PluginWindow(QtWidgets.QDialog):
                         for modName in self.__modListInfo.keys():
                             mergedModListInfo[modName]['index'] = self.__modListInfo[modName]['index']
                             
-                        qDebug(self.__tr(u"Updating {} mod order".format(Dc.ensureUnicode(modListPath))))
+                        qDebug(self.__tr("Updating {} mod order".format(Dc.ensureUnicode(modListPath))))
                         with open(modListPath, 'w') as modListFile:
                             for modName, modListEntry in sorted(mergedModListInfo.items(), key=lambda x: x[1]['index']):
                                 modListFile.write(modListEntry['symbol'] + modListEntry['name'] + '\n')
