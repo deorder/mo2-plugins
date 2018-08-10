@@ -5,7 +5,7 @@ import shutil
 import datetime 
 
 import mobase
-import common as Dc
+from . import common as Dc
 
 import PyQt5
 import PyQt5.QtGui as QtGui
@@ -138,16 +138,16 @@ class PluginWindow(QtWidgets.QDialog):
                         selectedModListInfo = self.getModListInfoByPath(modListPath)
                         mergedModListInfo = dict(self.__modListInfo, **selectedModListInfo)
 
-                        for modName in self.__modListInfo.keys():
+                        for modName in list(self.__modListInfo.keys()):
                             mergedModListInfo[modName]['index'] = self.__modListInfo[modName]['index']
                             
                         qDebug(self.__tr("Updating {} mod order".format(Dc.ensureUnicode(modListPath))))
                         with open(modListPath, 'w') as modListFile:
-                            for modName, modListEntry in sorted(mergedModListInfo.items(), key=lambda x: x[1]['index']):
+                            for modName, modListEntry in sorted(list(mergedModListInfo.items()), key=lambda x: x[1]['index']):
                                 modListFile.write(modListEntry['symbol'] + modListEntry['name'] + '\n')
                                 
                     self.refreshProfileList()
-            except Exception, e:
+            except Exception as e:
                 qCritical(e.message)
 
 class PluginTool(mobase.IPluginTool):

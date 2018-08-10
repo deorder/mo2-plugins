@@ -26,7 +26,7 @@ class PluginState:
         }
     def __str__(self):
         return self.__info[self.value]
-    MISSING, INACTIVE, ACTIVE = range(3)
+    MISSING, INACTIVE, ACTIVE = list(range(3))
 
 class ModPluginsState:
     def __eq__(self, x):
@@ -41,7 +41,7 @@ class ModPluginsState:
         }
     def __str__(self):
         return self.__info[self.value]
-    UNKNOWN, INACTIVE, MIXED, ACTIVE = range(4)
+    UNKNOWN, INACTIVE, MIXED, ACTIVE = list(range(4))
 
 SomeModPluginsActive = [ModPluginsState.ACTIVE, ModPluginsState.MIXED]
 SomeModPluginsInactive = [ModPluginsState.INACTIVE, ModPluginsState.MIXED]
@@ -72,7 +72,7 @@ class ModState:
     def __contains__(self, x):
         return (self.value & x) == x
     def __str__(self):
-        return ', '.join([self.__info[x] for x in self.__info.keys() if (x in self)])
+        return ', '.join([self.__info[x] for x in list(self.__info.keys()) if (x in self)])
 
 globEscapeRegExp = r'([' + re.escape('[]?*') + '])'
 
@@ -95,7 +95,7 @@ def readLines(filename):
     return lines
 
 def ensureUnicode(text):
-    return text.encode('utf8') if isinstance(text, unicode) else text
+    return text.encode('utf8') if isinstance(text, str) else text
 
 def getModByName(organizer, name):
     return organizer.getMod(name)

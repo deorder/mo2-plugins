@@ -4,7 +4,7 @@ import glob
 import traceback
 
 import mobase
-import common as Dc
+from . import common as Dc
 
 import PyQt5
 import PyQt5.QtGui as QtGui
@@ -222,7 +222,7 @@ class PluginWindow(QtWidgets.QDialog):
                                 pluginInfo = self.__pluginInfo[plugin]
                                 Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))
                 self.refreshMergedModList()
-            except Exception, e:
+            except Exception as e:
                 qCritical(traceback.format_exc())
                 qCritical(e.message)                
 
