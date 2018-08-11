@@ -94,8 +94,6 @@ def readLines(filename):
         lines = [line.strip() for line in file.readlines()]
     return lines
 
-def ensureUnicode(text):
-    return text.encode('utf8') if isinstance(text, str) else text
 
 def getModByName(organizer, name):
     return organizer.getMod(name)

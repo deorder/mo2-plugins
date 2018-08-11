@@ -20,7 +20,7 @@ from PyQt5.QtCore import QCoreApplication
 class PluginWindow(QtWidgets.QDialog):
 
     def __tr(self, str):
-        return Dc.ensureUnicode(QCoreApplication.translate("MergePluginsHideWindow", str))
+        return QCoreApplication.translate("MergePluginsHideWindow", str)
 
     def __init__(self, organizer, parent = None):
         self.__pluginInfo = {}
@@ -107,7 +107,7 @@ class PluginWindow(QtWidgets.QDialog):
             if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))):
                 return Dc.PluginState(Dc.PluginState.INACTIVE)
         else:
-            qWarning(self.__tr("Plugin {} missing".format(Dc.ensureUnicode(name))))
+            qWarning(self.__tr("Plugin {} missing".format(name)))
         return Dc.PluginState(Dc.PluginState.MISSING)
 
     def getMergedModPluginsState(self, name):
@@ -121,7 +121,7 @@ class PluginWindow(QtWidgets.QDialog):
             elif(any((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
                 return Dc.ModPluginsState.MIXED
         else:
-            qWarning(self.__tr("Merged mod {} missing".format(Dc.ensureUnicode(name))))
+            qWarning(self.__tr("Merged mod {} missing".format(name)))
         return Dc.ModPluginsState.UNKNOWN
 
     def addMergedModInfoFromMod(self, mod):
@@ -232,7 +232,7 @@ class PluginTool(mobase.IPluginTool):
     DESCRIPTION = "Hide / unhide plugins that were merged using Merge Plugins."
 
     def __tr(self, str):
-        return Dc.ensureUnicode(QCoreApplication.translate("MergePluginsHide", str))
+        return QCoreApplication.translate("MergePluginsHide", str)
 
     def __init__(self):
         self.__window = None
