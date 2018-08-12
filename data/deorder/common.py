@@ -90,8 +90,10 @@ def tryMoveFile(source, target):
 
 def readLines(filename):
     lines = []
-    with open(filename, 'r') as file:
+    with open(filename, 'r', encoding='utf-8') as file:
         lines = [line.strip() for line in file.readlines()]
+    #for line in lines:
+    #    qDebug(line.encode('utf-8'))
     return lines
 
 

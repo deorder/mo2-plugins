@@ -132,7 +132,7 @@ class PluginWindow(QtWidgets.QDialog):
                         modListPath = os.path.join(profileInfo['path'], 'modlist.txt')
                         modListBackupPath = modListPath + '.' +  datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
 
-                        qDebug(self.__tr("Backing up to {}".format(modListBackupPath)))
+                        qDebug(self.__tr("Backing up to {}".format(modListBackupPath)).encode('utf-8'))
                         shutil.copy(modListPath, modListBackupPath)
 
                         selectedModListInfo = self.getModListInfoByPath(modListPath)
@@ -141,14 +141,14 @@ class PluginWindow(QtWidgets.QDialog):
                         for modName in list(self.__modListInfo.keys()):
                             mergedModListInfo[modName]['index'] = self.__modListInfo[modName]['index']
                             
-                        qDebug(self.__tr("Updating {} mod order".format(modListPath)))
+                        qDebug(self.__tr("Updating {} mod order".format(modListPath)).encode('utf-8'))
                         with open(modListPath, 'w') as modListFile:
                             for modName, modListEntry in sorted(list(mergedModListInfo.items()), key=lambda x: x[1]['index']):
                                 modListFile.write(modListEntry['symbol'] + modListEntry['name'] + '\n')
                                 
                     self.refreshProfileList()
             except Exception as e:
-                qCritical(e.message)
+                qCritical(e.message.encode('utf-8'))
 
 class PluginTool(mobase.IPluginTool):
 

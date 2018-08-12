@@ -107,7 +107,7 @@ class PluginWindow(QtWidgets.QDialog):
             if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))):
                 return Dc.PluginState(Dc.PluginState.INACTIVE)
         else:
-            qWarning(self.__tr("Plugin {} missing".format(name)))
+            qWarning(self.__tr("Plugin {} missing".format(name)).encode('utf-8'))
         return Dc.PluginState(Dc.PluginState.MISSING)
 
     def getMergedModPluginsState(self, name):
@@ -121,7 +121,7 @@ class PluginWindow(QtWidgets.QDialog):
             elif(any((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
                 return Dc.ModPluginsState.MIXED
         else:
-            qWarning(self.__tr("Merged mod {} missing".format(name)))
+            qWarning(self.__tr("Merged mod {} missing".format(name)).encode('utf-8'))
         return Dc.ModPluginsState.UNKNOWN
 
     def addMergedModInfoFromMod(self, mod):
@@ -223,8 +223,8 @@ class PluginWindow(QtWidgets.QDialog):
                                 Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))
                 self.refreshMergedModList()
             except Exception as e:
-                qCritical(traceback.format_exc())
-                qCritical(e.message)                
+                qCritical(traceback.format_exc().encode('utf-8'))
+                qCritical(e.message.encode('utf-8'))                
 
 class PluginTool(mobase.IPluginTool):
 
