@@ -49,6 +49,7 @@ class PluginWindow(QtWidgets.QDialog):
         self.mergedModList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.mergedModList.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.mergedModList.customContextMenuRequested.connect(self.openMergedModMenu)
+        self.mergedModList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
         verticalLayout.addWidget(self.mergedModList)
 
