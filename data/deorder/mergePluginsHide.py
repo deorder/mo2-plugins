@@ -1,6 +1,7 @@
 import os
 import sys
 import glob
+import json
 import traceback
 
 import mobase
@@ -86,6 +87,9 @@ class PluginWindow(QtWidgets.QDialog):
         self.refreshMergedModList()
 
     def isMergedMod(self, mod):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "merge.json")):
+            if os.path.isfile(path):
+                return True
         for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
             if os.path.isfile(path):
                 return True
@@ -95,6 +99,13 @@ class PluginWindow(QtWidgets.QDialog):
         return [mod for mod in Dc.getMods(self.__organizer) if self.isMergedMod(mod)]
 
     def getMergedModPlugins(self, mod):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "merge.json")):
+            if os.path.isfile(path):
+                plugins = []
+                with open(path, 'r', encoding='utf-8') as file:
+                    merge = json.load(file)
+                    plugins = [plugin['filename'] for plugin in merge['plugins']]
+                return plugins
         for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
             if os.path.isfile(path):
                 return Dc.readLines(path)

@@ -96,7 +96,6 @@ def readLines(filename):
     #    qDebug(line.encode('utf-8'))
     return lines
 
-
 def getModByName(organizer, name):
     return organizer.getMod(name)
 
