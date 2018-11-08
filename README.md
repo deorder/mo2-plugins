@@ -11,6 +11,14 @@ Copy all files except `LICENSE` and `README.md` inside your `Mod Organizer 2` `p
 
 The plugin will be added to the `Tools` (icon with puzzle pieces) menu.
 
+## Merge Plugins Hide
+
+You can choose between the following plugin hide methods by changing the `hide-type` setting:
+
+- **mohidden**: Hide using the MO2 virtual file system by adding `.mohidden` to the plugin file
+- **optional**: Hide by moving the plugin file the the `optional` directory inside the mod
+- **disable**: Hide by disabling the plugin
+
 ## Build
 
 - Download: https://github.com/pyqt/python-qt5/tree/master/PyQt5

@@ -148,7 +148,7 @@ class PluginWindow(QtWidgets.QDialog):
                                 
                     self.refreshProfileList()
             except Exception as e:
-                qCritical(e.message.encode('utf-8'))
+                qCritical(str(e).encode('utf-8'))
 
 class PluginTool(mobase.IPluginTool):
 

@@ -5,6 +5,7 @@ import glob
 
 from PyQt5 import QtGui
 from PyQt5.QtCore import qDebug
+from PyQt5.QtCore import qWarning
 
 red = QtGui.QColor(255, 170, 170)
 green = QtGui.QColor(205, 222, 135)
@@ -88,6 +89,15 @@ def tryMoveFile(source, target):
         # Ignore exception
         pass
 
+def tryCreateDir(path):
+    qDebug("Creating dir {}".format(path))
+    try:
+        # Attempt creating directory
+        os.mkdir(path)
+    except:
+        # Ignore exception
+        pass
+
 def readLines(filename):
     lines = []
     with open(filename, 'r', encoding='utf-8') as file:
@@ -110,6 +120,9 @@ def getPluginNames(organizer):
 
 def getPluginStateByName(organizer, name):
     return PluginState(organizer.pluginList().state(name))
+
+def setPluginStateByName(organizer, name, state):
+    return organizer.pluginList().setState(name, state)
 
 def getMods(organizer):
     return [getModByName(organizer, modname) for modname in getModNames(organizer)]
