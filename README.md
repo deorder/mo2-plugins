@@ -16,7 +16,7 @@ The plugin will be added to the `Tools` (icon with puzzle pieces) menu.
 You can choose between the following plugin hide methods by changing the `hide-type` setting:
 
 - **mohidden**: Hide using the MO2 virtual file system by adding `.mohidden` to the plugin file
-- **optional**: Hide by moving the plugin file the the `optional` directory inside the mod
+- **optional**: Hide by moving the plugin file to the `optional` directory inside the mod
 - **disable**: Hide by disabling the plugin
 
 ## Build
