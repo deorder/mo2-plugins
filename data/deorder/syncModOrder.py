@@ -5,7 +5,7 @@ import shutil
 import datetime 
 
 import mobase
-import common as Dc
+from . import common as Dc
 
 import PyQt5
 import PyQt5.QtGui as QtGui
@@ -21,7 +21,7 @@ from PyQt5.QtCore import QCoreApplication
 class PluginWindow(QtWidgets.QDialog):
 
     def __tr(self, str):
-        return Dc.ensureUnicode(QCoreApplication.translate("SyncModOrderWindow", str))
+        return QCoreApplication.translate("SyncModOrderWindow", str)
 
     def __init__(self, organizer, parent = None):
         self.__modListInfo = {}
@@ -132,23 +132,23 @@ class PluginWindow(QtWidgets.QDialog):
                         modListPath = os.path.join(profileInfo['path'], 'modlist.txt')
                         modListBackupPath = modListPath + '.' +  datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
 
-                        qDebug(self.__tr("Backing up to {}".format(Dc.ensureUnicode(modListBackupPath))))
+                        qDebug(self.__tr("Backing up to {}".format(modListBackupPath)).encode('utf-8'))
                         shutil.copy(modListPath, modListBackupPath)
 
                         selectedModListInfo = self.getModListInfoByPath(modListPath)
                         mergedModListInfo = dict(self.__modListInfo, **selectedModListInfo)
 
-                        for modName in self.__modListInfo.keys():
+                        for modName in list(self.__modListInfo.keys()):
                             mergedModListInfo[modName]['index'] = self.__modListInfo[modName]['index']
                             
-                        qDebug(self.__tr("Updating {} mod order".format(Dc.ensureUnicode(modListPath))))
+                        qDebug(self.__tr("Updating {} mod order".format(modListPath)).encode('utf-8'))
                         with open(modListPath, 'w') as modListFile:
-                            for modName, modListEntry in sorted(mergedModListInfo.items(), key=lambda x: x[1]['index']):
+                            for modName, modListEntry in sorted(list(mergedModListInfo.items()), key=lambda x: x[1]['index']):
                                 modListFile.write(modListEntry['symbol'] + modListEntry['name'] + '\n')
                                 
                     self.refreshProfileList()
-            except Exception, e:
-                qCritical(e.message)
+            except Exception as e:
+                qCritical(str(e).encode('utf-8'))
 
 class PluginTool(mobase.IPluginTool):
 
@@ -156,7 +156,7 @@ class PluginTool(mobase.IPluginTool):
     DESCRIPTION = "Sync mod order from current profile to another while keeping the (enabled/disabled) state intact"
 
     def __tr(self, str):
-        return Dc.ensureUnicode(QCoreApplication.translate("SyncModOrder", str))
+        return QCoreApplication.translate("SyncModOrder", str)
 
     def __init__(self):
         self.__window = None

@@ -1,10 +1,11 @@
 import os
 import sys
 import glob
+import json
 import traceback
 
 import mobase
-import common as Dc
+from . import common as Dc
 
 import PyQt5
 import PyQt5.QtGui as QtGui
@@ -20,14 +21,16 @@ from PyQt5.QtCore import QCoreApplication
 class PluginWindow(QtWidgets.QDialog):
 
     def __tr(self, str):
-        return Dc.ensureUnicode(QCoreApplication.translate("MergePluginsHideWindow", str))
+        return QCoreApplication.translate("MergePluginsHideWindow", str)
 
     def __init__(self, organizer, parent = None):
         self.__pluginInfo = {}
         self.__mergedModInfo = {}
         self.__organizer = organizer
 
-        super(PluginWindow, self).__init__(parent)
+        super(PluginWindow, self).__init__(None)
+
+        self.__hide_type = organizer.pluginSetting(parent.name(), "hide-type")
 
         self.resize(500, 500)
         self.setWindowIcon(QtGui.QIcon(':/deorder/mergePluginsHide'))
@@ -49,6 +52,7 @@ class PluginWindow(QtWidgets.QDialog):
         self.mergedModList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.mergedModList.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.mergedModList.customContextMenuRequested.connect(self.openMergedModMenu)
+        self.mergedModList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
         verticalLayout.addWidget(self.mergedModList)
 
@@ -68,6 +72,8 @@ class PluginWindow(QtWidgets.QDialog):
 
         verticalLayout.addLayout(buttonLayout)
 
+        qDebug("Hide Type: {}".format(self.__hide_type).encode('utf-8'))
+
         # Vertical Layout
         self.setLayout(verticalLayout)
 
@@ -85,15 +91,25 @@ class PluginWindow(QtWidgets.QDialog):
         self.refreshMergedModList()
 
     def isMergedMod(self, mod):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "merge.json")):
+            if os.path.isfile(path):
+                return True
         for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
             if os.path.isfile(path):
                 return True
         return False
 
     def getMergedMods(self):
-        return [mod for mod in Dc.getMods(self.__organizer) if self.isMergedMod(mod)]
+        return [mod for mod in Dc.getMods(self.__organizer) if self.isMergedMod(mod) and ((Dc.ModState.ACTIVE | Dc.ModState.VALID) in Dc.getModStateByName(self.__organizer, mod.name()))]
 
     def getMergedModPlugins(self, mod):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "merge.json")):
+            if os.path.isfile(path):
+                plugins = []
+                with open(path, 'r', encoding='utf-8') as file:
+                    merge = json.load(file)
+                    plugins = [plugin['filename'] for plugin in merge['plugins']]
+                return plugins
         for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
             if os.path.isfile(path):
                 return Dc.readLines(path)
@@ -102,18 +118,27 @@ class PluginWindow(QtWidgets.QDialog):
     def getPluginStateByName(self, name):
         if name in self.__pluginInfo:
             pluginInfo = self.__pluginInfo[name]
-            if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']))):
-                return Dc.PluginState(Dc.PluginState.ACTIVE)
-            if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))):
-                return Dc.PluginState(Dc.PluginState.INACTIVE)
+            if self.__hide_type == "mohidden":
+                if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']))):
+                    return Dc.PluginState(Dc.PluginState.ACTIVE)
+                if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))):
+                    return Dc.PluginState(Dc.PluginState.INACTIVE)
+            if self.__hide_type == "optional":
+                if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']))):
+                    return Dc.PluginState(Dc.PluginState.ACTIVE)
+                if(os.path.isfile(os.path.join(pluginInfo['dirname'], 'optional', pluginInfo['filename']))):
+                    return Dc.PluginState(Dc.PluginState.INACTIVE)
+            if self.__hide_type == "disable":                
+                if(os.path.isfile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']))):
+                    return Dc.getPluginStateByName(self.__organizer, pluginInfo['filename'])
         else:
-            qWarning(self.__tr("Plugin {} missing".format(Dc.ensureUnicode(name))))
+            qWarning(self.__tr("Plugin {} missing".format(name)).encode('utf-8'))
         return Dc.PluginState(Dc.PluginState.MISSING)
 
     def getMergedModPluginsState(self, name):
         if name in self.__mergedModInfo:
             plugins = self.__mergedModInfo[name]['plugins']
-            pluginstates = [self.getPluginStateByName(plugin) for plugin in plugins]
+            pluginstates = [self.getPluginStateByName(plugin) for plugin in plugins]            
             if(all((pluginstate in [Dc.PluginState.ACTIVE]) for pluginstate in pluginstates)):
                 return Dc.ModPluginsState.ACTIVE
             elif(all((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
@@ -121,65 +146,65 @@ class PluginWindow(QtWidgets.QDialog):
             elif(any((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
                 return Dc.ModPluginsState.MIXED
         else:
-            qWarning(self.__tr("Merged mod {} missing".format(Dc.ensureUnicode(name))))
+            qWarning(self.__tr("Merged mod {} missing".format(name)).encode('utf-8'))
         return Dc.ModPluginsState.UNKNOWN
 
     def addMergedModInfoFromMod(self, mod):
-        patterns = ['*.esp', '*.esm', '*.esp.mohidden', '*.esm.mohidden']
-        for pattern in patterns:
-            for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), pattern)):
-                filename = os.path.basename(path).replace('.mohidden', '')
-                self.__mergedModInfo[mod.name()] = {
-                    'name': mod.name(),
-                    'path': mod.absolutePath(),
-                    'plugins': self.getMergedModPlugins(mod),
-                    'state': Dc.getModStateByName(self.__organizer, mod.name())
-                }
+        self.__mergedModInfo[mod.name()] = {
+            'name': mod.name(),
+            'path': mod.absolutePath(),
+            'plugins': self.getMergedModPlugins(mod),
+            'modstate': Dc.getModStateByName(self.__organizer, mod.name())
+        }
 
     def addPluginInfoFromMod(self, mod):
-        patterns = ['*.esp', '*.esm', '*.esp.mohidden', '*.esm.mohidden']
-        for pattern in patterns:
-            for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), pattern)):
-                filename = os.path.basename(path).replace('.mohidden', '')
-                self.__pluginInfo[filename] = {
-                    'filename': filename,
-                    'dirname': os.path.dirname(path),
-                    'state': Dc.getModStateByName(self.__organizer, mod.name())
-                }
+        return self.addPluginInfoFromParams(mod.absolutePath(), Dc.getModStateByName(self.__organizer, mod.name()))
 
     def addPluginInfoFromParams(self, modPath, modState):
-        patterns = ['*.esp', '*.esm', '*.esp.mohidden', '*.esm.mohidden']
+        patterns = ['*.esp', '*.esm']
+        if self.__hide_type == "mohidden":
+            patterns = ['*.esp', '*.esm', '*.esp.mohidden', '*.esm.mohidden']
+        if self.__hide_type == "optional":
+            patterns = ['*.esp', '*.esm', os.path.join('optional', '*.esp'), os.path.join('optional', '*.esm')]
         for pattern in patterns:
             for path in glob.glob(os.path.join(Dc.globEscape(modPath), pattern)):
-                filename = os.path.basename(path).replace('.mohidden', '')
-                self.__pluginInfo[filename] = {
-                    'filename': filename,
-                    'dirname': os.path.dirname(path),
-                    'state': modState
-                }
+                if self.__hide_type == "mohidden":
+                    filename = os.path.basename(path).replace('.mohidden', '')
+                    self.__pluginInfo[filename] = {
+                        'filename': os.path.basename(path).replace('.mohidden', ''),
+                        'modstate': modState,
+                        'dirname': modPath
+                    }
+                if self.__hide_type in ["optional", "disable"]:
+                    filename = os.path.basename(path)
+                    self.__pluginInfo[filename] = {
+                        'filename': os.path.basename(path),
+                        'modstate': modState,
+                        'dirname': modPath
+                    }
 
     def refreshMergedModList(self):
         self.mergedModList.clear()
         for modName in sorted(self.__mergedModInfo):
-            modState = self.getMergedModPluginsState(modName)
+            modPluginsState = self.getMergedModPluginsState(modName)
             color = {
                 Dc.ModPluginsState.UNKNOWN: Dc.red,
                 Dc.ModPluginsState.ACTIVE: None,
                 Dc.ModPluginsState.MIXED: Dc.yellow,
                 Dc.ModPluginsState.INACTIVE: Dc.green
-            }[modState]
+            }[modPluginsState]
             stateDescription = {
                 Dc.ModPluginsState.UNKNOWN: self.__tr("Unknown"),
                 Dc.ModPluginsState.ACTIVE: self.__tr("All plugins active"),
                 Dc.ModPluginsState.MIXED: self.__tr("Some plugins active"),
                 Dc.ModPluginsState.INACTIVE: self.__tr("All plugins inactive")
-            }[modState]
+            }[modPluginsState]
             item = QtWidgets.QTreeWidgetItem(self.mergedModList, [modName, stateDescription])
             for x in range(2):
                 if color:
                     item.setBackground(x, color)
                     item.setForeground(x, Qt.black)
-                item.setData(x, Qt.UserRole, {"modName": modName, "modState": modState})
+                item.setData(x, Qt.UserRole, {"modName": modName, "modPluginsState": modPluginsState})
             self.mergedModList.addTopLevelItem(item)
         self.mergedModList.resizeColumnToContents(0)
 
@@ -190,8 +215,8 @@ class PluginWindow(QtWidgets.QDialog):
 
             selectedItemsData = [item.data(0, Qt.UserRole) for item in selectedItems]
             selectedMods = [selectedItemData['modName'] for selectedItemData in selectedItemsData]
-            selectedModsWithEnabled = [selectedItemData['modName'] for selectedItemData in selectedItemsData if (selectedItemData['modState'] in Dc.SomeModPluginsInactive)]
-            selectedModsWithDisabled = [selectedItemData['modName'] for selectedItemData in selectedItemsData if (selectedItemData['modState'] in Dc.SomeModPluginsActive)]
+            selectedModsWithEnabled = [selectedItemData['modName'] for selectedItemData in selectedItemsData if (selectedItemData['modPluginsState'] in Dc.SomeModPluginsInactive)]
+            selectedModsWithDisabled = [selectedItemData['modName'] for selectedItemData in selectedItemsData if (selectedItemData['modPluginsState'] in Dc.SomeModPluginsActive)]
 
             enableAction = QtWidgets.QAction(QtGui.QIcon(':/MO/gui/active'), self.__tr('&Enable plugins'), self)
             enableAction.setEnabled(False)
@@ -214,17 +239,32 @@ class PluginWindow(QtWidgets.QDialog):
                         for plugin in self.__mergedModInfo[selectedMod]['plugins']:
                             if plugin in self.__pluginInfo:
                                 pluginInfo = self.__pluginInfo[plugin]
-                                Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'), os.path.join(pluginInfo['dirname'], pluginInfo['filename']))                            
+
+                                if self.__hide_type == "mohidden":
+                                    Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'), os.path.join(pluginInfo['dirname'], pluginInfo['filename']))
+                                if self.__hide_type == "optional":
+                                    Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], 'optional', pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename']))
+                                if self.__hide_type == "disable":
+                                    Dc.setPluginStateByName(self.__organizer, pluginInfo['filename'], Dc.PluginState.ACTIVE)
+
                 if action == disableAction:
                     for selectedMod in selectedModsWithDisabled:
                         for plugin in self.__mergedModInfo[selectedMod]['plugins']:
                             if plugin in self.__pluginInfo:
                                 pluginInfo = self.__pluginInfo[plugin]
-                                Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))
+
+                                if self.__hide_type == "mohidden":
+                                    Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], pluginInfo['filename'] + '.mohidden'))
+                                if self.__hide_type == "optional":
+                                    Dc.tryCreateDir(os.path.join(pluginInfo['dirname'], 'optional'))
+                                    Dc.tryMoveFile(os.path.join(pluginInfo['dirname'], pluginInfo['filename']), os.path.join(pluginInfo['dirname'], 'optional', pluginInfo['filename']))
+                                if self.__hide_type == "disable":
+                                    Dc.setPluginStateByName(self.__organizer, pluginInfo['filename'], Dc.PluginState.INACTIVE)
+
                 self.refreshMergedModList()
-            except Exception, e:
-                qCritical(traceback.format_exc())
-                qCritical(e.message)                
+            except Exception as e:
+                qCritical(traceback.format_exc().encode('utf-8'))
+                qCritical(str(e).encode('utf-8'))
 
 class PluginTool(mobase.IPluginTool):
 
@@ -232,7 +272,7 @@ class PluginTool(mobase.IPluginTool):
     DESCRIPTION = "Hide / unhide plugins that were merged using Merge Plugins."
 
     def __tr(self, str):
-        return Dc.ensureUnicode(QCoreApplication.translate("MergePluginsHide", str))
+        return QCoreApplication.translate("MergePluginsHide", str)
 
     def __init__(self):
         self.__window = None
@@ -252,20 +292,20 @@ class PluginTool(mobase.IPluginTool):
     def settings(self):
         return [
             mobase.PluginSetting("enabled", self.__tr("Enable this plugin"), True),
-            #mobase.PluginSetting("include_disabled_mods", self.__tr("Also hide plugins in disabled mods (when hide_type = mohidden)"), True),
-            #mobase.PluginSetting("hide_type", self.__tr("In what way should plugins be hidden: mohidden, disableplugin"), "mohidden")
+            #mobase.PluginSetting("only-active-mods", self.__tr("Only act on active mod"), False),
+            mobase.PluginSetting("hide-type", self.__tr("In what way should plugins be hidden: mohidden (Hide file), optional (Move to optional dir), disable (Disable plugins)"), "mohidden")
         ]
 
     def display(self):
-        self.__window = PluginWindow(self.__organizer)
+        self.__window = PluginWindow(self.__organizer, self)
         self.__window.setWindowTitle(self.NAME)
         self.__window.exec_()
 
-        # Refresh Mod Organizer mod list to reflect changes
-        self.__organizer.refreshModList()
+        # Refresh Mod Organizer mod list to reflect changes where files were changed outside MO2
+        if self.__organizer.pluginSetting(self.name(), "hide-type") in ["mohidden", "optional"]:
+            self.__organizer.refreshModList()
 
     def icon(self):
-
         return QtGui.QIcon(':/deorder/mergePluginsHide')
 
     def setParentWidget(self, widget):

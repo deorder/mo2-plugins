@@ -5,6 +5,7 @@ import glob
 
 from PyQt5 import QtGui
 from PyQt5.QtCore import qDebug
+from PyQt5.QtCore import qWarning
 
 red = QtGui.QColor(255, 170, 170)
 green = QtGui.QColor(205, 222, 135)
@@ -26,7 +27,7 @@ class PluginState:
         }
     def __str__(self):
         return self.__info[self.value]
-    MISSING, INACTIVE, ACTIVE = range(3)
+    MISSING, INACTIVE, ACTIVE = list(range(3))
 
 class ModPluginsState:
     def __eq__(self, x):
@@ -41,7 +42,7 @@ class ModPluginsState:
         }
     def __str__(self):
         return self.__info[self.value]
-    UNKNOWN, INACTIVE, MIXED, ACTIVE = range(4)
+    UNKNOWN, INACTIVE, MIXED, ACTIVE = list(range(4))
 
 SomeModPluginsActive = [ModPluginsState.ACTIVE, ModPluginsState.MIXED]
 SomeModPluginsInactive = [ModPluginsState.INACTIVE, ModPluginsState.MIXED]
@@ -72,7 +73,7 @@ class ModState:
     def __contains__(self, x):
         return (self.value & x) == x
     def __str__(self):
-        return ', '.join([self.__info[x] for x in self.__info.keys() if (x in self)])
+        return ', '.join([self.__info[x] for x in list(self.__info.keys()) if (x in self)])
 
 globEscapeRegExp = r'([' + re.escape('[]?*') + '])'
 
@@ -88,14 +89,22 @@ def tryMoveFile(source, target):
         # Ignore exception
         pass
 
+def tryCreateDir(path):
+    qDebug("Creating dir {}".format(path))
+    try:
+        # Attempt creating directory
+        os.mkdir(path)
+    except:
+        # Ignore exception
+        pass
+
 def readLines(filename):
     lines = []
-    with open(filename, 'r') as file:
+    with open(filename, 'r', encoding='utf-8') as file:
         lines = [line.strip() for line in file.readlines()]
+    #for line in lines:
+    #    qDebug(line.encode('utf-8'))
     return lines
-
-def ensureUnicode(text):
-    return text.encode('utf8') if isinstance(text, unicode) else text
 
 def getModByName(organizer, name):
     return organizer.getMod(name)
@@ -111,6 +120,9 @@ def getPluginNames(organizer):
 
 def getPluginStateByName(organizer, name):
     return PluginState(organizer.pluginList().state(name))
+
+def setPluginStateByName(organizer, name, state):
+    return organizer.pluginList().setState(name, state)
 
 def getMods(organizer):
     return [getModByName(organizer, modname) for modname in getModNames(organizer)]
