@@ -95,10 +95,10 @@ class PluginWindow(QtWidgets.QDialog):
         self.refreshMergedModList()
 
     def isMergedMod(self, mod):
-        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "merge.json")):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge*", "merge.json")):
             if os.path.isfile(path):
                 return True
-        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge*", "*_plugins.txt")):
             if os.path.isfile(path):
                 return True
         return False
@@ -107,14 +107,14 @@ class PluginWindow(QtWidgets.QDialog):
         return [mod for mod in Dc.getMods(self.__organizer) if self.isMergedMod(mod) and ((Dc.ModState.ACTIVE | Dc.ModState.VALID) in Dc.getModStateByName(self.__organizer, mod.name()))]
 
     def getMergedModPlugins(self, mod):
-        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "merge.json")):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge*", "merge.json")):
             if os.path.isfile(path):
                 plugins = []
                 with open(path, 'r', encoding='utf-8') as file:
                     merge = json.load(file)
                     plugins = [plugin['filename'] for plugin in merge['plugins']]
                 return plugins
-        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge", "*_plugins.txt")):
+        for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge*", "*_plugins.txt")):
             if os.path.isfile(path):
                 return Dc.readLines(path)
         return []
