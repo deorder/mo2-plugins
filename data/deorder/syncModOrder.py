@@ -142,7 +142,7 @@ class PluginWindow(QtWidgets.QDialog):
                             mergedModListInfo[modName]['index'] = self.__modListInfo[modName]['index']
                             
                         qDebug(self.__tr("Updating {} mod order".format(modListPath)).encode('utf-8'))
-                        with open(modListPath, 'w') as modListFile:
+                        with open(modListPath, 'w', encoding='utf-8') as modListFile:
                             for modName, modListEntry in sorted(list(mergedModListInfo.items()), key=lambda x: x[1]['index']):
                                 modListFile.write(modListEntry['symbol'] + modListEntry['name'] + '\n')
                                 
