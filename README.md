@@ -7,7 +7,7 @@
 
 ## Installation
 
-Copy all files except `LICENSE` and `README.md` inside your `Mod Organizer 2` `plugins` directory.
+Copy all files except `LICENSE`, `README.md`, and `.editorconfig` inside your `Mod Organizer 2` `plugins` directory.
 
 The plugin will be added to the `Tools` (icon with puzzle pieces) menu.
 
