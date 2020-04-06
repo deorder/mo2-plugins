@@ -81,7 +81,7 @@ def globEscape(text):
     return re.sub(globEscapeRegExp, r'[\1]', text)
 
 def tryMoveFile(source, target):
-    qDebug("Moving {} to {}".format(source, target))
+    qDebug("Moving {} to {}".format(source, target).encode('utf-8'))
     try:
         # Attempt renaming file even if it does not exist
         os.rename(source, target)
@@ -90,7 +90,7 @@ def tryMoveFile(source, target):
         pass
 
 def tryCreateDir(path):
-    qDebug("Creating dir {}".format(path))
+    qDebug("Creating dir {}".format(path).encode('utf-8'))
     try:
         # Attempt creating directory
         os.mkdir(path)
