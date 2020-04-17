@@ -112,7 +112,7 @@ class PluginWindow(QtWidgets.QDialog):
                 plugins = []
                 with open(path, 'r', encoding='utf-8') as file:
                     merge = json.load(file)
-                    plugins = [plugin['filename'] for plugin in merge['plugins']]
+                    plugins = [plugin['filename'].lower() for plugin in merge['plugins']]
                 return plugins
         for path in glob.glob(os.path.join(Dc.globEscape(mod.absolutePath()), "merge*", "*_plugins.txt")):
             if os.path.isfile(path):
@@ -121,7 +121,7 @@ class PluginWindow(QtWidgets.QDialog):
 
     def getPluginStateByName(self, name):
         if name in self.__pluginInfo:
-            pluginInfo = self.__pluginInfo[name]
+            pluginInfo = self.__pluginInfo[name.lower()]
             if self.__hide_type == "mohidden":
                 if(all([os.path.isfile(os.path.join(mod['dirname'], pluginInfo['filename'])) for mod in pluginInfo['mods']])):
                     return Dc.PluginState(Dc.PluginState.ACTIVE)
@@ -142,7 +142,7 @@ class PluginWindow(QtWidgets.QDialog):
     def getMergedModPluginsState(self, name):
         if name in self.__mergedModInfo:
             plugins = self.__mergedModInfo[name]['plugins']
-            pluginstates = [self.getPluginStateByName(plugin) for plugin in plugins]            
+            pluginstates = [self.getPluginStateByName(plugin.lower()) for plugin in plugins]
             if(all((pluginstate in [Dc.PluginState.ACTIVE]) for pluginstate in pluginstates)):
                 return Dc.ModPluginsState.ACTIVE
             elif(all((pluginstate in [Dc.PluginState.MISSING, Dc.PluginState.INACTIVE]) for pluginstate in pluginstates)):
@@ -176,18 +176,18 @@ class PluginWindow(QtWidgets.QDialog):
                 if self.__hide_type == "mohidden":
                     filename = os.path.basename(path).replace('.mohidden', '')
                     if filename in self.__pluginInfo:
-                        self.__pluginInfo[filename]['mods'] += [mod]
+                        self.__pluginInfo[filename.lower()]['mods'] += [mod]
                     else:
-                        self.__pluginInfo[filename] = {
+                        self.__pluginInfo[filename.lower()] = {
                             'filename': os.path.basename(path).replace('.mohidden', ''),
                             'mods': [mod]
                         }
                 if self.__hide_type in ["optional", "disable"]:
                     filename = os.path.basename(path)                    
                     if filename in self.__pluginInfo:
-                        self.__pluginInfo[filename]['mods'] += [mod]
+                        self.__pluginInfo[filename.lower()]['mods'] += [mod]
                     else:
-                        self.__pluginInfo[filename] = {
+                        self.__pluginInfo[filename.lower()] = {
                             'filename': os.path.basename(path),
                             'mods': [mod]
                         }
@@ -247,7 +247,7 @@ class PluginWindow(QtWidgets.QDialog):
                     for selectedMod in selectedModsWithEnabled:
                         for plugin in self.__mergedModInfo[selectedMod]['plugins']:
                             if plugin in self.__pluginInfo:
-                                pluginInfo = self.__pluginInfo[plugin]
+                                pluginInfo = self.__pluginInfo[plugin.lower()]
 
                                 for mod in pluginInfo['mods']:
                                     if self.__hide_type == "mohidden":
@@ -261,7 +261,7 @@ class PluginWindow(QtWidgets.QDialog):
                     for selectedMod in selectedModsWithDisabled:
                         for plugin in self.__mergedModInfo[selectedMod]['plugins']:
                             if plugin in self.__pluginInfo:
-                                pluginInfo = self.__pluginInfo[plugin]
+                                pluginInfo = self.__pluginInfo[plugin.lower()]
 
                                 for mod in pluginInfo['mods']:
                                     if self.__hide_type == "mohidden":
