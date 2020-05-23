@@ -7,13 +7,14 @@
 
 ## Installation
 
-Copy all files except `LICENSE`, `README.md`, and `.editorconfig` inside your `Mod Organizer 2` `plugins` directory.
+Downlaod [the `.zip` archive](https://github.com/deorder/mo2-plugins/archive/master.zip) and extract it directly into Mod Organizer 2
+`plugins/` folder.
 
 The plugin will be added to the `Tools` (icon with puzzle pieces) menu.
 
 ## Merge Plugins Hide
 
-**Note:** When using zMerge to merge mods Mator recommends to use zMerge's built-in functionality to disable plugins. If you use this zMerge will disable the plugins for you. If you still want to use `Merge Plugins Hide` for example to keep track of the state of the plugins that are merged and quickly enable/disable them you can also set the `hide-type` to `disable` to use the same method as zMerge uses. 
+**Note:** When using zMerge to merge mods Mator recommends to use zMerge's built-in functionality to disable plugins. If you use this zMerge will disable the plugins for you. If you still want to use `Merge Plugins Hide` for example to keep track of the state of the plugins that are merged and quickly enable/disable them you can also set the `hide-type` to `disable` to use the same method as zMerge uses.
 
 You can choose between the following plugin hide methods by changing the `hide-type` setting:
 
