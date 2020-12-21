@@ -126,7 +126,7 @@ class PluginWindow(QtWidgets.QDialog):
             ]
 
             syncAction = QtWidgets.QAction(
-                QtGui.QIcon(":/MO/gui/next"), self.__tr("&Sync mod order"), self
+                QtGui.QIcon(":/MO/gui/next"), self.__tr("&Sync current profile mod order to"), self
             )
             syncAction.setEnabled(True)
             menu.addAction(syncAction)
