@@ -1,5 +1,5 @@
-from . import mergePluginsHide, syncModOrder
+from . import merge_plugins_hide, sync_mod_order
 
 
 def createPlugins():
-    return [mergePluginsHide.PluginTool(), syncModOrder.PluginTool()]
+    return [merge_plugins_hide.PluginTool(), sync_mod_order.PluginTool()]

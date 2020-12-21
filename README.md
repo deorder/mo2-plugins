@@ -7,8 +7,7 @@
 
 ## Installation
 
-Downlaod [the `.zip` archive](https://github.com/deorder/mo2-plugins/archive/master.zip) and extract it directly into Mod Organizer 2
-`plugins/` folder.
+Download [the `.zip` archive](https://github.com/deorder/mo2-plugins/archive/master.zip) and extract it inside a subdirectory into Mod Organizer 2's `plugins/` folder, for example `plugins/deorder/`.
 
 The plugin will be added to the `Tools` (icon with puzzle pieces) menu.
 
@@ -26,7 +25,6 @@ You can choose between the following plugin hide methods by changing the `hide-t
 
 - Download: https://github.com/pyqt/python-qt5/tree/master/PyQt5
 
-- Copy & paste the `pyqt5` directory inside `data/deorder`
+- Copy & paste the `pyqt5` directory inside this directory
 
 - Run `build.bat` to build the resources
-

@@ -1,6 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource prefix="deorder">
-    <file>mergePluginsHide.svg</file>
-    <file>syncModOrder.svg</file>
+    <file>merge_plugins_hide.svg</file>
+    <file>sync_mod_order.svg</file>
 </qresource>
 </RCC>
