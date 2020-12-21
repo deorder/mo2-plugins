@@ -1,29 +1,25 @@
 import os
-import sys
 import glob
 import shutil
-import datetime 
+import datetime
 
 import mobase
 from . import common as Dc
 
-import PyQt5
 import PyQt5.QtGui as QtGui
 import PyQt5.QtCore as QtCore
 import PyQt5.QtWidgets as QtWidgets
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtCore import qDebug
-from PyQt5.QtCore import qWarning
-from PyQt5.QtCore import qCritical
+from PyQt5.QtCore import qDebug, qCritical
 from PyQt5.QtCore import QCoreApplication
 
-class PluginWindow(QtWidgets.QDialog):
 
+class PluginWindow(QtWidgets.QDialog):
     def __tr(self, str):
         return QCoreApplication.translate("SyncModOrderWindow", str)
 
-    def __init__(self, organizer, parent = None):
+    def __init__(self, organizer, parent=None):
         self.__modListInfo = {}
         self.__profilesInfo = {}
         self.__organizer = organizer
@@ -31,7 +27,7 @@ class PluginWindow(QtWidgets.QDialog):
         super(PluginWindow, self).__init__(parent)
 
         self.resize(500, 500)
-        self.setWindowIcon(QtGui.QIcon(':/deorder/syncModOrder'))
+        self.setWindowIcon(QtGui.QIcon(":/deorder/syncModOrder"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         # Vertical Layout
@@ -57,7 +53,7 @@ class PluginWindow(QtWidgets.QDialog):
 
         # Vertical Layout -> Button Layout -> Refresh Button
         refreshButton = QtWidgets.QPushButton(self.__tr("&Refresh"), self)
-        refreshButton.setIcon(QtGui.QIcon(':/MO/gui/refresh'))
+        refreshButton.setIcon(QtGui.QIcon(":/MO/gui/refresh"))
         refreshButton.clicked.connect(self.refreshProfileList)
         buttonLayout.addWidget(refreshButton)
 
@@ -75,7 +71,9 @@ class PluginWindow(QtWidgets.QDialog):
         self.__profileInfo = self.getProfileInfo()
 
         # Build lookup dictionary of mods in current profile
-        self.__modListInfo = self.getModListInfoByPath(os.path.join(self.__organizer.profilePath(), 'modlist.txt'))
+        self.__modListInfo = self.getModListInfoByPath(
+            os.path.join(self.__organizer.profilePath(), "modlist.txt")
+        )
 
         self.refreshProfileList()
 
@@ -86,21 +84,26 @@ class PluginWindow(QtWidgets.QDialog):
             modName = modListLine[1:]
             modStateSymbol = modListLine[0]
             modListInfo[modName] = {
-                'index': index,
-                'name': modName,
-                'symbol': modStateSymbol
+                "index": index,
+                "name": modName,
+                "symbol": modStateSymbol,
             }
         return modListInfo
 
     def getProfileInfo(self):
         profileInfo = {}
-        for path in glob.glob(os.path.join(Dc.globEscape(self.__organizer.profilePath()), os.pardir, '*', 'modlist.txt', os.pardir)):
+        for path in glob.glob(
+            os.path.join(
+                Dc.globEscape(self.__organizer.profilePath()),
+                os.pardir,
+                "*",
+                "modlist.txt",
+                os.pardir,
+            )
+        ):
             profilePath = os.path.normpath(path)
             profileName = os.path.basename(profilePath)
-            profileInfo[profileName] = {
-                'name': profileName,
-                'path': profilePath
-            }
+            profileInfo[profileName] = {"name": profileName, "path": profilePath}
         return profileInfo
 
     def refreshProfileList(self):
@@ -117,9 +120,14 @@ class PluginWindow(QtWidgets.QDialog):
             menu = QtWidgets.QMenu()
 
             selectedItemsData = [item.data(0, Qt.UserRole) for item in selectedItems]
-            selectedProfiles = [selectedItemData['profileName'] for selectedItemData in selectedItemsData]
+            selectedProfiles = [
+                selectedItemData["profileName"]
+                for selectedItemData in selectedItemsData
+            ]
 
-            syncAction = QtWidgets.QAction(QtGui.QIcon(':/MO/gui/next'), self.__tr('&Sync mod order'), self)
+            syncAction = QtWidgets.QAction(
+                QtGui.QIcon(":/MO/gui/next"), self.__tr("&Sync mod order"), self
+            )
             syncAction.setEnabled(True)
             menu.addAction(syncAction)
 
@@ -129,31 +137,56 @@ class PluginWindow(QtWidgets.QDialog):
                 if action == syncAction:
                     for profileName in selectedProfiles:
                         profileInfo = self.__profileInfo[profileName]
-                        modListPath = os.path.join(profileInfo['path'], 'modlist.txt')
-                        modListBackupPath = modListPath + '.' +  datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
+                        modListPath = os.path.join(profileInfo["path"], "modlist.txt")
+                        modListBackupPath = (
+                            modListPath
+                            + "."
+                            + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+                        )
 
-                        qDebug(self.__tr("Backing up to {}".format(modListBackupPath)).encode('utf-8'))
+                        qDebug(
+                            self.__tr(
+                                "Backing up to {}".format(modListBackupPath)
+                            ).encode("utf-8")
+                        )
                         shutil.copy(modListPath, modListBackupPath)
 
                         selectedModListInfo = self.getModListInfoByPath(modListPath)
-                        mergedModListInfo = dict(self.__modListInfo, **selectedModListInfo)
+                        mergedModListInfo = dict(
+                            self.__modListInfo, **selectedModListInfo
+                        )
 
                         for modName in list(self.__modListInfo.keys()):
-                            mergedModListInfo[modName]['index'] = self.__modListInfo[modName]['index']
-                            
-                        qDebug(self.__tr("Updating {} mod order".format(modListPath)).encode('utf-8'))
-                        with open(modListPath, 'w', encoding='utf-8') as modListFile:
-                            for modName, modListEntry in sorted(list(mergedModListInfo.items()), key=lambda x: x[1]['index']):
-                                modListFile.write(modListEntry['symbol'] + modListEntry['name'] + '\n')
-                                
+                            mergedModListInfo[modName]["index"] = self.__modListInfo[
+                                modName
+                            ]["index"]
+
+                        qDebug(
+                            self.__tr(
+                                "Updating {} mod order".format(modListPath)
+                            ).encode("utf-8")
+                        )
+                        with open(modListPath, "w", encoding="utf-8") as modListFile:
+                            for modName, modListEntry in sorted(
+                                list(mergedModListInfo.items()),
+                                key=lambda x: x[1]["index"],
+                            ):
+                                modListFile.write(
+                                    modListEntry["symbol"] + modListEntry["name"] + "\n"
+                                )
+
                     self.refreshProfileList()
             except Exception as e:
-                qCritical(str(e).encode('utf-8'))
+                qCritical(str(e).encode("utf-8"))
+
 
 class PluginTool(mobase.IPluginTool):
 
-    NAME =  "Sync Mod Order"
-    DESCRIPTION = "Sync mod order from current profile to another while keeping the (enabled/disabled) state intact"
+    NAME = "Sync Mod Order"
+    DESCRIPTION = (
+        "Sync mod order from current profile to another while keeping the "
+        "(enabled/disabled) state intact"
+    )
 
     def __tr(self, str):
         return QCoreApplication.translate("SyncModOrder", str)
@@ -166,7 +199,8 @@ class PluginTool(mobase.IPluginTool):
         super(PluginTool, self).__init__()
 
     def init(self, organizer):
-        from deorder import resources
+        from . import resources  # noqa
+
         self.__organizer = organizer
         return True
 
@@ -174,9 +208,7 @@ class PluginTool(mobase.IPluginTool):
         return bool(self.__organizer.pluginSetting(self.NAME, "enabled"))
 
     def settings(self):
-        return [
-            mobase.PluginSetting("enabled", self.__tr("Enable this plugin"), True)
-        ]
+        return [mobase.PluginSetting("enabled", self.__tr("Enable this plugin"), True)]
 
     def display(self):
         self.__window = PluginWindow(self.__organizer)
@@ -188,7 +220,7 @@ class PluginTool(mobase.IPluginTool):
 
     def icon(self):
 
-        return QtGui.QIcon(':/deorder/syncModOrder')
+        return QtGui.QIcon(":/deorder/syncModOrder")
 
     def setParentWidget(self, widget):
         self.__parentWidget = widget
