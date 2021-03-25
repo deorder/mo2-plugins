@@ -7,7 +7,7 @@
 
 ## Installation
 
-Download [the `.zip` archive](https://github.com/deorder/mo2-plugins/archive/master.zip) and extract it inside a subdirectory into Mod Organizer 2's `plugins/` folder, for example `plugins/deorder/`.
+Download the latest `.zip` file from the release page and extract it inside Mod Organizer 2's `plugins/` folder.
 
 The plugin will be added to the `Tools` (icon with puzzle pieces) menu.
 
