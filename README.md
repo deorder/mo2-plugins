@@ -23,6 +23,28 @@ You can choose between the following plugin hide methods by changing the `hide-t
 
 ## Build
 
+### Recommended
+
+#### First time
+
+- Run the following inside this folder: `python3 -m venv venv`
+
+- Activate env if using PowerShell: .\venv\scripts\Activate.ps1
+- Activate env if using CMD: call venv/scripts/activate.bat
+
+- Run: pip install PyQt5
+
+- Run: `build.bat` to build the resources
+
+#### From then on
+
+- Activate env if using PowerShell: .\venv\scripts\Activate.ps1
+- Activate env if using CMD: call venv/scripts/activate.bat
+
+- Run: `build.bat` to build the resources
+
+### Alternative
+
 - Download: https://github.com/pyqt/python-qt5/tree/master/PyQt5
 
 - Copy & paste the `pyqt5` directory inside this directory

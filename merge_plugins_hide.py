@@ -34,7 +34,7 @@ class PluginWindow(QtWidgets.QDialog):
         )
 
         self.resize(500, 500)
-        self.setWindowIcon(QtGui.QIcon(":/deorder/mergePluginsHide"))
+        self.setWindowIcon(QtGui.QIcon(":/deorder/merge_plugins_hide"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         # Vertical Layout
@@ -475,7 +475,7 @@ class PluginTool(mobase.IPluginTool):
             self.__organizer.refreshModList()
 
     def icon(self):
-        return QtGui.QIcon(":/deorder/mergePluginsHide")
+        return QtGui.QIcon(":/deorder/merge_plugins_hide")
 
     def setParentWidget(self, widget):
         self.__parentWidget = widget

@@ -16,6 +16,7 @@ from PyQt5.QtCore import QCoreApplication
 
 
 class PluginWindow(QtWidgets.QDialog):
+
     def __tr(self, str):
         return QCoreApplication.translate("SyncModOrderWindow", str)
 
@@ -27,7 +28,7 @@ class PluginWindow(QtWidgets.QDialog):
         super(PluginWindow, self).__init__(parent)
 
         self.resize(500, 500)
-        self.setWindowIcon(QtGui.QIcon(":/deorder/syncModOrder"))
+        self.setWindowIcon(QtGui.QIcon(":/deorder/sync_mod_order"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         # Vertical Layout
@@ -220,7 +221,7 @@ class PluginTool(mobase.IPluginTool):
 
     def icon(self):
 
-        return QtGui.QIcon(":/deorder/syncModOrder")
+        return QtGui.QIcon(":/deorder/sync_mod_order")
 
     def setParentWidget(self, widget):
         self.__parentWidget = widget
