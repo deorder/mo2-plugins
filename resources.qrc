@@ -2,5 +2,6 @@
 <qresource prefix="deorder">
     <file>merge_plugins_hide.svg</file>
     <file>sync_mod_order.svg</file>
+    <file>link_deploy.svg</file>
 </qresource>
 </RCC>
