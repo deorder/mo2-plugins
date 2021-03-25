@@ -171,17 +171,17 @@ class PluginWindow(QtWidgets.QDialog):
         # Vertical Layout
         verticalLayout = QtWidgets.QVBoxLayout()
 
-        self.__targetDir = organizer.managedGame().gameDirectory().absolutePath()
+        self.__targetDir = organizer.managedGame().dataDirectory().absolutePath()
         # TODO: The following is not used yet
-        self.__originalDir = organizer.managedGame().gameDirectory().absolutePath() + "Original"
+        self.__originalDir = organizer.managedGame().dataDirectory().absolutePath() + "Original"
 
         # Vertical Layout -> Original Label
         self.noteLabel = QtWidgets.QLabel(self)
         self.noteLabel.setText(self.__tr("""
-Warning: This tool will deploy your modlist to the game folder using {}.
+Warning: This tool will deploy your modlist to the data directory using {}.
 Note: (Un/re)depolying is not yet supported meaning you will have to reinstall the game if you want to start fresh.
 Note: that there is also no guarantee that the game will not touch and modify your mod files.
-Tip: Convert your game/data directory (Example: <Skyrim Game Dir>/data) to a mod
+Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
         """.format(self.__tr('soft links') if self.__symlink else self.__tr('hard links'))))
 
         verticalLayout.addWidget(self.noteLabel)
