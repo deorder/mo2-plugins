@@ -16,7 +16,6 @@ from PyQt5.QtCore import QCoreApplication
 
 
 class PluginWindow(QtWidgets.QDialog):
-
     def __tr(self, str):
         return QCoreApplication.translate("SyncModOrderWindow", str)
 
@@ -72,9 +71,7 @@ class PluginWindow(QtWidgets.QDialog):
         self.__profileInfo = self.getProfileInfo()
 
         # Build lookup dictionary of mods in current profile
-        self.__modListInfo = self.getModListInfoByPath(
-            os.path.join(self.__organizer.profilePath(), "modlist.txt")
-        )
+        self.__modListInfo = self.getModListInfoByPath(os.path.join(self.__organizer.profilePath(), "modlist.txt"))
 
         self.refreshProfileList()
 
@@ -121,13 +118,12 @@ class PluginWindow(QtWidgets.QDialog):
             menu = QtWidgets.QMenu()
 
             selectedItemsData = [item.data(0, Qt.UserRole) for item in selectedItems]
-            selectedProfiles = [
-                selectedItemData["profileName"]
-                for selectedItemData in selectedItemsData
-            ]
+            selectedProfiles = [selectedItemData["profileName"] for selectedItemData in selectedItemsData]
 
             syncAction = QtWidgets.QAction(
-                QtGui.QIcon(":/MO/gui/next"), self.__tr("&Sync current profile mod order to"), self
+                QtGui.QIcon(":/MO/gui/next"),
+                self.__tr("&Sync current profile mod order to"),
+                self,
             )
             syncAction.setEnabled(True)
             menu.addAction(syncAction)
@@ -139,42 +135,24 @@ class PluginWindow(QtWidgets.QDialog):
                     for profileName in selectedProfiles:
                         profileInfo = self.__profileInfo[profileName]
                         modListPath = os.path.join(profileInfo["path"], "modlist.txt")
-                        modListBackupPath = (
-                            modListPath
-                            + "."
-                            + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
-                        )
+                        modListBackupPath = modListPath + "." + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
 
-                        qDebug(
-                            self.__tr(
-                                "Backing up to {}".format(modListBackupPath)
-                            ).encode("utf-8")
-                        )
+                        qDebug(self.__tr("Backing up to {}").format(modListBackupPath))
                         shutil.copy(modListPath, modListBackupPath)
 
                         selectedModListInfo = self.getModListInfoByPath(modListPath)
-                        mergedModListInfo = dict(
-                            self.__modListInfo, **selectedModListInfo
-                        )
+                        mergedModListInfo = dict(self.__modListInfo, **selectedModListInfo)
 
                         for modName in list(self.__modListInfo.keys()):
-                            mergedModListInfo[modName]["index"] = self.__modListInfo[
-                                modName
-                            ]["index"]
+                            mergedModListInfo[modName]["index"] = self.__modListInfo[modName]["index"]
 
-                        qDebug(
-                            self.__tr(
-                                "Updating {} mod order".format(modListPath)
-                            ).encode("utf-8")
-                        )
+                        qDebug(self.__tr("Updating {} mod order").format(modListPath))
                         with open(modListPath, "w", encoding="utf-8") as modListFile:
                             for modName, modListEntry in sorted(
                                 list(mergedModListInfo.items()),
                                 key=lambda x: x[1]["index"],
                             ):
-                                modListFile.write(
-                                    modListEntry["symbol"] + modListEntry["name"] + "\n"
-                                )
+                                modListFile.write(modListEntry["symbol"] + modListEntry["name"] + "\n")
 
                     self.refreshProfileList()
             except Exception as e:
@@ -184,10 +162,7 @@ class PluginWindow(QtWidgets.QDialog):
 class PluginTool(mobase.IPluginTool):
 
     NAME = "Sync Mod Order"
-    DESCRIPTION = (
-        "Sync mod order from current profile to another while keeping the "
-        "(enabled/disabled) state intact"
-    )
+    DESCRIPTION = "Sync mod order from current profile to another while keeping the " "(enabled/disabled) state intact"
 
     def __tr(self, str):
         return QCoreApplication.translate("SyncModOrder", str)

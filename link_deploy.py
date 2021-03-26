@@ -33,16 +33,30 @@ from PyQt5.QtCore import QCoreApplication
 
 from PyQt5.QtWidgets import QTreeWidgetItem
 
+
+def is_relative_to(from_path, to_path):
+    try:
+        from_path.relative_to(to_path)
+        return True
+    except ValueError:
+        return False
+
+
 class RefreshListWorker(QThread):
     finished_signal = pyqtSignal()
     add_item_signal = pyqtSignal(str)
 
     __organizer: mobase.IOrganizer
 
-    def __init__(self,  organizer: mobase.IOrganizer, parent=None):
+    def __tr(self, str):
+        return QCoreApplication.translate("LinkDeployRefreshWorker", str)
+
+    def __init__(self, organizer: mobase.IOrganizer, parent=None):
         QThread.__init__(self, parent)
+        self.__is_running = True
         self.__organizer = organizer
         self.__mods_directory = self.__organizer.modsPath()
+        self.__overwrite_directory = self.__organizer.overwritePath()
 
     # From: https://github.com/LostDragonist/MO2-Plugins
     def _listDirsRecursive(self, search_dirpaths, prefix=""):
@@ -54,99 +68,145 @@ class RefreshListWorker(QThread):
 
     def run(self):
         # Adapted from: https://github.com/LostDragonist/MO2-Plugins
-        search_dirpaths = ['']
-        
+        search_dirpaths = [""]
+
         self._listDirsRecursive(search_dirpaths)
         for dirpath in search_dirpaths:
             for filepath in self.__organizer.findFiles(path=dirpath, filter=lambda x: True):
-                # This is a messed up way to discard the mods directory and mod name from the path
-                try:
-                    filepath = os.path.join(
-                        *pathlib.Path(filepath).relative_to(self.__mods_directory).parts[1:]
-                    )
-                    if "mohidden" in filepath: 
-                        continue
-                    self.add_item_signal.emit(filepath)
-                except ValueError:
-                    # Skip files not in the mods directory
+                if not self.__is_running:
+                    break
+
+                if "mohidden" in filepath:
                     continue
+
+                if not os.path.exists(filepath):
+                    continue
+
+                p = pathlib.Path(filepath)
+                if is_relative_to(p, self.__mods_directory):
+                    filepath = os.path.join(*p.relative_to(self.__mods_directory).parts[1:])
+                elif is_relative_to(p, self.__overwrite_directory):
+                    filepath = os.path.join(*p.relative_to(self.__overwrite_directory).parts[0:])
+                else:
+                    continue
+
+                self.add_item_signal.emit(filepath)
+
         self.finished_signal.emit()
+
+    def stop(self):
+        self.__is_running = False
 
 
 class DeployWorker(QThread):
     finished_signal = pyqtSignal()
     set_item_status_signal = pyqtSignal(dict)
 
+    def __tr(self, str):
+        return QCoreApplication.translate("LinkDeployWorker", str)
+
     def __init__(self, organizer: mobase.IOrganizer, targetDir, originalDir, symlink, entries, parent=None):
         QThread.__init__(self, parent)
+        self.__is_running = True
         self.__entries = entries
         self.__symlink = symlink
         self.__organizer = organizer
         self.__target_dir = targetDir
         self.__original_dir = originalDir
         self.__mods_directory = self.__organizer.modsPath()
+        self.__overwrite_directory = self.__organizer.overwritePath()
         self.__max_workers = max(1, multiprocessing.cpu_count() - 1)
 
     def run(self):
         def link_task(entry):
-            origins = self.__organizer.getFileOrigins(entry['filepath'])
+            if not self.__is_running:
+                return {"entry": entry, "status": "canceled"}
+
+            origins = self.__organizer.getFileOrigins(entry["filepath"])
             if origins[0]:
                 origin = origins[0]
-                filepath = entry['filepath']
+                filepath = entry["filepath"]
 
                 if "mohidden" in filepath:
-                    return {'entry': entry, 'status': "skipped"}
+                    return {"entry": entry, "status": "skipped"}
 
                 target_path = os.path.join(self.__target_dir, filepath)
                 target_dirpath = os.path.dirname(target_path)
 
                 mod = self.__organizer.getMod(origin)
                 if mod is None:
-                    qDebug("Unable to get mod: {}".format(mod_name.encode('utf-8')))
-                    return {'entry': entry, 'status': "failed"}
+                    qWarning("Unable to get mod: {}".format(mod_name.encode("utf-8")))
+                    return {"entry": entry, "status": "failed"}
 
                 mod_path = mod.absolutePath()
-
-                if not mod_path.startswith(self.__mods_directory):
-                    # Probably DLC or unmanaged mod
-                    return {'entry': entry, 'status': "skipped"}
 
                 source_path = os.path.join(mod_path, filepath)
                 if os.path.exists(source_path):
 
                     try:
-                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        os.makedirs(target_dirpath, exist_ok=True)
                     except FileExistsError:
                         pass
                     except:
-                        return {'entry': entry, 'status': "failed"}
+                        qWarning(self.__tr("Could not create path {}").format(target_dirpath).encode("utf-8"))
+                        return {"entry": entry, "status": "failed"}
 
                     try:
-                        #qDebug("os.link('{}', '{}')".format(source_path, target_path).encode("utf-8"))
                         if self.__symlink:
                             os.symlink(source_path, target_path)
                         else:
                             os.link(source_path, target_path)
-                        return {'entry': entry, 'status': "linked"}
+                        return {"entry": entry, "status": "linked"}
                     except FileExistsError:
-                        return {'entry': entry, 'status': "exists"}
+                        if not os.path.samefile(source_path, target_path):
+                            if not os.path.exists(target_path + ".mo2_original"):
+                                try:
+                                    os.rename(target_path, target_path + ".mo2_original")
+                                except:
+                                    qWarning(self.__tr("Could not move away original {}").format(target_path).encode("utf-8"))
+                                    return {"entry": entry, "status": "failed"}
+                            else:
+                                try:
+                                    os.rename(target_path, target_path + ".mo2_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f"))
+                                except:
+                                    qWarning(self.__tr("Could not move away {}").format(target_path).encode("utf-8"))
+                                    return {"entry": entry, "status": "failed"}
+                            try:
+                                if self.__symlink:
+                                    os.symlink(source_path, target_path)
+                                else:
+                                    os.link(source_path, target_path)
+                                return {"entry": entry, "status": "linked"}
+                            except:
+                                qWarning(self.__tr("Could not create link {}, after moving away").format(target_path).encode("utf-8"))
+                                return {"entry": entry, "status": "failed"}
+                        else:
+                            return {"entry": entry, "status": "already deployed"}
                     except:
-                        return {'entry': entry, 'status': "failed"}
+                        qWarning(self.__tr("Could not create link {}").format(target_path).encode("utf-8"))
+                        return {"entry": entry, "status": "failed"}
 
                 else:
-                    return {'entry': entry, 'status': "failed"}
+                    qWarning(self.__tr("Source path {} does not exist").format(source_path).encode("utf-8"))
+                    return {"entry": entry, "status": "failed"}
             else:
-                return {'entry': entry, 'status': "failed"}
+                qWarning(self.__tr("No origins found").encode("utf-8"))
+                return {"entry": entry, "status": "failed"}
 
         def link_done_callback(entry, future):
             self.set_item_status_signal.emit(future.result())
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers = self.__max_workers) as executor:
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.__max_workers) as executor:
             for entry in self.__entries:
+                if not self.__is_running:
+                    break
                 future = executor.submit(link_task, entry)
                 future.add_done_callback(functools.partial(link_done_callback, entry))
 
         self.finished_signal.emit()
+
+    def stop(self):
+        self.__is_running = False
 
 
 class PluginWindow(QtWidgets.QDialog):
@@ -159,6 +219,9 @@ class PluginWindow(QtWidgets.QDialog):
     def __init__(self, organizer: mobase.IOrganizer, parent=None):
         self.__organizer = organizer
 
+        self.__ready = False
+        self.__deploy_worker = None
+        self.__refresh_worker = None
         self.__cpucount = max(1, multiprocessing.cpu_count() - 1)
         self.__symlink = organizer.pluginSetting(parent.name(), "symlink")
 
@@ -177,12 +240,18 @@ class PluginWindow(QtWidgets.QDialog):
 
         # Vertical Layout -> Original Label
         self.noteLabel = QtWidgets.QLabel(self)
-        self.noteLabel.setText(self.__tr("""
+        self.noteLabel.setText(
+            self.__tr(
+                """
 Warning: This tool will deploy your modlist to the data directory using {}.
 Note: (Un/re)depolying is not yet supported meaning you will have to reinstall the game if you want to start fresh.
 Note: that there is also no guarantee that the game will not touch and modify your mod files.
 Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
-        """.format(self.__tr('soft links') if self.__symlink else self.__tr('hard links'))))
+        """.format(
+                    self.__tr("soft links") if self.__symlink else self.__tr("hard links")
+                )
+            )
+        )
 
         verticalLayout.addWidget(self.noteLabel)
 
@@ -194,12 +263,12 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
         verticalLayout.addWidget(self.targetDirLabel)
 
         # Vertical Layout -> Original Label
-        #self.originalDirLabel = QtWidgets.QLabel(self)
-        #self.originalDirLabel.setFrameStyle(QtWidgets.QFrame.Panel | QtWidgets.QFrame.Sunken)
-        #self.originalDirLabel.setText(self.__tr("Original dir") + ":\n" + self.__originalDir)
+        # self.originalDirLabel = QtWidgets.QLabel(self)
+        # self.originalDirLabel.setFrameStyle(QtWidgets.QFrame.Panel | QtWidgets.QFrame.Sunken)
+        # self.originalDirLabel.setText(self.__tr("Original dir") + ":\n" + self.__originalDir)
 
-        #verticalLayout.addWidget(self.originalDirLabel)
-        
+        # verticalLayout.addWidget(self.originalDirLabel)
+
         # Vertical Layout -> Mapping List
         self.mappingList = QtWidgets.QTreeWidget()
 
@@ -209,29 +278,30 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
 
         self.mappingList.header().setVisible(True)
         self.mappingList.headerItem().setText(0, self.__tr("File"))
-        #self.mappingList.headerItem().setText(1, self.__tr("Status"))
+        # self.mappingList.headerItem().setText(1, self.__tr("Status"))
 
         verticalLayout.addWidget(self.mappingList)
 
         # Vertical Layout -> Status Label
         self.statusLabel = QtWidgets.QLabel(self)
         self.statusLabel.setFrameStyle(QtWidgets.QFrame.Panel | QtWidgets.QFrame.Sunken)
-        self.statusLabel.setText('...')
+        self.statusLabel.setText("...")
 
         verticalLayout.addWidget(self.statusLabel)
-        
+
         # Vertical Layout -> Button Layout
         buttonLayout = QtWidgets.QHBoxLayout()
 
         # Vertical Layout -> Button Layout -> Deploy Button
-        refreshButton = QtWidgets.QPushButton(self.__tr("&Deploy"), self)
-        refreshButton.setIcon(QtGui.QIcon(":/MO/gui/refresh"))
-        refreshButton.clicked.connect(self._deploy)
-        buttonLayout.addWidget(refreshButton)
+        self.__deployButton = QtWidgets.QPushButton(self.__tr("&Deploy"), self)
+        self.__deployButton.setIcon(QtGui.QIcon(":/MO/gui/refresh"))
+        self.__deployButton.clicked.connect(self._deploy)
+        self.__deployButton.setDisabled(True)
+        buttonLayout.addWidget(self.__deployButton)
 
         # Vertical Layout -> Button Layout -> Close Button
         closeButton = QtWidgets.QPushButton(self.__tr("&Close"), self)
-        closeButton.clicked.connect(self.close)
+        closeButton.clicked.connect(self._close)
         buttonLayout.addWidget(closeButton)
 
         verticalLayout.addLayout(buttonLayout)
@@ -249,53 +319,69 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
         root = self.mappingList.invisibleRootItem()
         for item_index in range(root.childCount()):
             entry = root.child(item_index).data(0, Qt.UserRole)
-            entry['item_index'] = item_index
+            entry["item_index"] = item_index
             entries.append(entry)
-        worker = DeployWorker(self.__organizer, self.__targetDir, self.__originalDir, self.__symlink, entries, self)
+        self.__deploy_worker = DeployWorker(self.__organizer, self.__targetDir, self.__originalDir, self.__symlink, entries, self)
 
         def set_item_status_callback(result):
-            entry = result['entry']
-            status = result['status']
-            filepath = entry['filepath']
-            item_index = entry['item_index']
+            entry = result["entry"]
+            status = result["status"]
+            filepath = entry["filepath"]
+            item_index = entry["item_index"]
             item = root.child(item_index)
-            if status == 'exists':
+            if status == "already deployed":
                 item.setBackground(0, Dc.yellow)
-            if status == 'linked':
+            if status == "linked":
                 item.setBackground(0, Dc.green)
-            if status == 'failed':
+            if status == "failed":
                 item.setBackground(0, Dc.red)
             item.setForeground(0, Qt.black)
-            self.statusLabel.setText(self.__tr("{} {}").format(filepath, status))
+            self.statusLabel.setText(self.__tr("{} {}").format(filepath, self.__tr(status)))
 
         def finished_callback():
             self.statusLabel.setText(self.__tr("Finished deployment."))
+            self.__deployButton.setDisabled(True)
 
-        worker.set_item_status_signal.connect(set_item_status_callback)
-        worker.finished_signal.connect(finished_callback)
+        self.__deploy_worker.set_item_status_signal.connect(set_item_status_callback)
+        self.__deploy_worker.finished_signal.connect(finished_callback)
 
-        worker.start()
+        self.__deploy_worker.start()
 
     def _refreshList(self):
         self.mappingList.clear()
 
-        worker = RefreshListWorker(self.__organizer, self)
+        self.__refresh_worker = RefreshListWorker(self.__organizer, self)
 
         self.statusLabel.setText(self.__tr("Populating list. Please wait..."))
 
         def add_item_callback(filepath):
-            item = QtWidgets.QTreeWidgetItem(self.mappingList, [filepath, '...'])
+            item = QtWidgets.QTreeWidgetItem(self.mappingList, [filepath, "..."])
             item.setData(0, Qt.UserRole, {"filepath": str(filepath)})
             self.mappingList.addTopLevelItem(item)
 
         def finished_callback():
             self.statusLabel.setText(self.__tr("Ready for deployment."))
             self.mappingList.resizeColumnToContents(0)
+            self.__deployButton.setDisabled(False)
 
-        worker.add_item_signal.connect(add_item_callback)
-        worker.finished_signal.connect(finished_callback)
+        self.__refresh_worker.add_item_signal.connect(add_item_callback)
+        self.__refresh_worker.finished_signal.connect(finished_callback)
 
-        worker.start()
+        self.__refresh_worker.start()
+
+    def _close(self):
+        if self.__refresh_worker:
+            self.__refresh_worker.stop()
+            self.__refresh_worker.quit()
+            self.__refresh_worker.wait()
+
+        if self.__deploy_worker:
+            self.__deploy_worker.stop()
+            self.__deploy_worker.quit()
+            self.__deploy_worker.wait()
+
+        self.close()
+
 
 class PluginTool(mobase.IPluginTool):
 
@@ -324,10 +410,7 @@ class PluginTool(mobase.IPluginTool):
         return bool(self.__organizer.pluginSetting(self.NAME, "enabled"))
 
     def settings(self):
-        return [
-            mobase.PluginSetting("enabled", self.__tr("Enable plugin"), True),
-            mobase.PluginSetting("symlink", self.__tr("Use symlinks/softlinks instead of hardlinks"), False)
-        ]
+        return [mobase.PluginSetting("enabled", self.__tr("Enable plugin"), True), mobase.PluginSetting("symlink", self.__tr("Use symlinks/softlinks instead of hardlinks"), False)]
 
     def display(self):
         self.__window = PluginWindow(self.__organizer, self)
