@@ -243,15 +243,24 @@ class PluginWindow(QtWidgets.QDialog):
 
     def addPluginInfoFromParams(self, modPath, modState):
         mod = {"modstate": modState, "dirname": modPath}
-        patterns = ["*.esp", "*.esm"]
+        patterns = ["*.esp", "*.esm", "*.esl"]
         if self.__hide_type == "mohidden":
-            patterns = ["*.esp", "*.esm", "*.esp.mohidden", "*.esm.mohidden"]
+            patterns = [
+                "*.esp",
+                "*.esm",
+                "*.esl",
+                "*.esp.mohidden",
+                "*.esm.mohidden",
+                "*.esl.mohidden",
+            ]
         if self.__hide_type == "optional":
             patterns = [
                 "*.esp",
                 "*.esm",
+                "*.esl",
                 os.path.join("optional", "*.esp"),
                 os.path.join("optional", "*.esm"),
+                os.path.join("optional", "*.esl"),
             ]
         for pattern in patterns:
             for path in glob.glob(os.path.join(Dc.globEscape(modPath), pattern)):

@@ -16,7 +16,6 @@ from PyQt5.QtCore import QCoreApplication
 
 
 class PluginWindow(QtWidgets.QDialog):
-
     def __tr(self, str):
         return QCoreApplication.translate("SyncModOrderWindow", str)
 
@@ -127,7 +126,9 @@ class PluginWindow(QtWidgets.QDialog):
             ]
 
             syncAction = QtWidgets.QAction(
-                QtGui.QIcon(":/MO/gui/next"), self.__tr("&Sync current profile mod order to"), self
+                QtGui.QIcon(":/MO/gui/next"),
+                self.__tr("&Sync current profile mod order to"),
+                self,
             )
             syncAction.setEnabled(True)
             menu.addAction(syncAction)
