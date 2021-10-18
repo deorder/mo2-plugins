@@ -22,7 +22,11 @@ class PluginState:
 
     def __init__(self, x):
         self.value = x
-        self.__info = {self.MISSING: "Missing", self.INACTIVE: "Inactive", self.ACTIVE: "Active"}
+        self.__info = {
+            self.MISSING: "Missing",
+            self.INACTIVE: "Inactive",
+            self.ACTIVE: "Active",
+        }
 
     def __str__(self):
         return self.__info[self.value]
@@ -36,7 +40,12 @@ class ModPluginsState:
 
     def __init__(self, x):
         self.value = x
-        self.__info = {self.UNKNOWN: "Unknown", self.INACTIVE: "Inactive", self.MIXED: "Mixed", self.ACTIVE: "Active"}
+        self.__info = {
+            self.UNKNOWN: "Unknown",
+            self.INACTIVE: "Inactive",
+            self.MIXED: "Mixed",
+            self.ACTIVE: "Active",
+        }
 
     def __str__(self):
         return self.__info[self.value]
@@ -60,7 +69,16 @@ class ModState:
 
     def __init__(self, x):
         self.value = x
-        self.__info = {self.UNKNOWN: "Unknown", self.EXISTS: "Exists", self.ACTIVE: "Active", self.ESSENTIAL: "Essential", self.EMPTY: "Empty", self.ENDORSED: "Endorsed", self.VALID: "Valid", self.ALTERNATE: "Alternate"}
+        self.__info = {
+            self.UNKNOWN: "Unknown",
+            self.EXISTS: "Exists",
+            self.ACTIVE: "Active",
+            self.ESSENTIAL: "Essential",
+            self.EMPTY: "Empty",
+            self.ENDORSED: "Endorsed",
+            self.VALID: "Valid",
+            self.ALTERNATE: "Alternate",
+        }
 
     def __eq__(self, x):
         return self.value == x
@@ -69,7 +87,9 @@ class ModState:
         return (self.value & x) == x
 
     def __str__(self):
-        return ", ".join([self.__info[x] for x in list(self.__info.keys()) if (x in self)])
+        return ", ".join(
+            [self.__info[x] for x in list(self.__info.keys()) if (x in self)]
+        )
 
 
 globEscapeRegExp = r"([" + re.escape("[]?*") + "])"
