@@ -1,14 +1,8 @@
 import os
-import glob
 import json
-import traceback
-import inspect
+import datetime
 
-import signal
 import functools
-import traceback
-import threading
-import subprocess
 
 import multiprocessing
 import concurrent.futures
@@ -16,6 +10,9 @@ import concurrent.futures
 import mobase
 import pathlib
 from . import common as Dc
+
+from enum import Enum
+from typing import Union
 
 import PyQt5.QtGui as QtGui
 import PyQt5.QtCore as QtCore
@@ -33,6 +30,8 @@ from PyQt5.QtCore import QCoreApplication
 
 from PyQt5.QtWidgets import QTreeWidgetItem
 
+from json.decoder import JSONDecodeError
+
 
 def is_relative_to(from_path, to_path):
     try:
@@ -40,6 +39,130 @@ def is_relative_to(from_path, to_path):
         return True
     except ValueError:
         return False
+
+
+class StateOperation(Enum):
+    LINK = 0
+    REMOVE = 1
+    CREATE_IN_STATE = 2
+    UPDATE_IN_STATE = 3
+    REMOVE_FROM_STATE = 4
+    LINK_TO_OVERWRITE = 5
+    BACKUP_EXISTING = 6
+
+
+class StateManager:
+    def __tr(self, str: str):
+        return QCoreApplication.translate("LinkDeployStateManager", str)
+
+    def __init__(self, organizer: mobase.IOrganizer, target_data_dir: str, target_game_dir: str, state_file_path: str, symlink: bool = False):
+        self.state = {}
+        self.__symlink = symlink
+        self.__organizer = organizer
+        self.__target_data_dir = target_data_dir
+        self.__target_game_dir = target_game_dir
+        self.__state_file_path = state_file_path
+        self.__state_file_dir = os.path.dirname(self.__state_file_path)
+
+    def loadState(self):
+        try:
+            with open(self.__state_file_path) as state_file:
+                self.state = json.load(state_file)
+        except FileNotFoundError:
+            pass
+        except JSONDecodeError:
+            qWarning(self.__tr("Invalid or corrupted state file {}").format(self.__state_file_path).encode("utf-8"))
+        except:
+            qWarning(self.__tr("Could not read state file {}").format(self.__state_file_path).encode("utf-8"))
+
+    def saveState(self):
+        try:
+            os.makedirs(self.__state_file_dir, exist_ok=True)
+        except FileExistsError:
+            pass
+        except:
+            qWarning(self.__tr("Could not create state file dir {}").format(self.__state_file_dir).encode("utf-8"))
+        try:
+            with open(self.__state_file_path, "w") as state_file:
+                json.dump(self.state, state_file)
+        except:
+            qWarning(self.__tr("Could not write state file {}").format(self.__state_file_path).encode("utf-8"))
+
+    def getStateEntry(self, file_path: str):
+        entry = {}
+
+        entry["file_path"] = file_path
+
+        state: Union[None, dict] = self.state.get(file_path)
+        entry["state_exists"] = file_path in self.state
+
+        target_path = entry["target_path"] = None
+        target_stat = entry["target_stat"] = None
+        target_exists = entry["target_exists"] = False
+        target_path_dir = entry["target_path_dir"] = None
+        path = pathlib.Path(file_path)
+        if path.parts[0] == "root":
+            target_path = entry["target_path"] = os.path.join(self.__target_game_dir, file_path)
+            target_path_dir = entry["target_path_dir"] = os.path.dirname(target_path)
+        else:
+            target_path = entry["target_path"] = os.path.join(self.__target_data_dir, file_path)
+            target_path_dir = entry["target_path_dir"] = os.path.dirname(target_path)
+        try:
+            target_stat = entry["target_stat"] = os.stat(target_path, follow_symlinks=True)
+            target_exists = entry["target_exists"] = True
+        except OSError:
+            pass
+
+        source_path = entry["source_path"] = None
+        source_stat = entry["source_stat"] = None
+        source_exists = entry["source_exists"] = False
+        source_path_dir = entry["source_path_dir"] = None
+        origins = self.__organizer.getFileOrigins(file_path)
+        if origins[0]:
+            origin = origins[0]
+            mod = self.__organizer.getMod(origin)
+            if mod is not None:
+                mod_path = mod.absolutePath()
+                source_path = entry["source_path"] = os.path.join(mod_path, file_path)
+                source_path_dir = entry["source_path_dir"] = os.path.dirname(source_path)
+                try:
+                    source_stat = entry["source_stat"] = os.stat(source_path, follow_symlinks=True)
+                    source_exists = entry["source_exists"] = True
+                except OSError:
+                    pass
+
+        entry["source_target_samefile"] = False
+        if source_stat and target_stat:
+            if self.__symlink:
+                entry["source_target_samefile"] = source_stat.st_mtime == target_stat.st_mtime and source_stat.st_ctime == target_stat.st_ctime and source_stat.st_size == target_stat.st_size
+            else:
+                entry["source_target_samefile"] = source_stat.st_dev == target_stat.st_dev and source_stat.st_ino == target_stat.st_ino
+
+        entry["state_target_samefile"] = False
+        if state and target_stat:
+            if self.__symlink:
+                entry["state_target_samefile"] = state.get("mtime") == target_stat.st_mtime and state.get("ctime") == target_stat.st_ctime and state.get("size") == target_stat.st_size
+            else:
+                entry["state_target_samefile"] = state.get("dev") == target_stat.st_dev and state.get("ino") == target_stat.st_ino
+
+        entry["state_source_samefile"] = False
+        if state and source_stat:
+            if self.__symlink:
+                entry["state_source_samefile"] = state.get("mtime") == source_stat.st_mtime and state.get("ctime") == source_stat.st_ctime and state.get("size") == source_stat.st_size
+            else:
+                entry["state_source_samefile"] = state.get("dev") == source_stat.st_dev and state.get("ino") == source_stat.st_ino
+
+        if source_stat:
+            entry["state_new"] = {"mtime": source_stat.st_mtime, "ctime": source_stat.st_ctime, "size": source_stat.st_size, "dev": source_stat.st_dev, "ino": source_stat.st_ino}
+        else:
+            entry["state_new"] = None
+
+        if state:
+            entry["state_old"] = {"mtime": state.get("mtime"), "ctime": state.get("ctime"), "size": state.get("size"), "dev": state.get("dev"), "ino": state.get("ino")}
+        else:
+            entry["state_old"] = None
+
+        return entry
 
 
 class RefreshListWorker(QThread):
@@ -51,10 +174,11 @@ class RefreshListWorker(QThread):
     def __tr(self, str):
         return QCoreApplication.translate("LinkDeployRefreshWorker", str)
 
-    def __init__(self, organizer: mobase.IOrganizer, parent=None):
+    def __init__(self, organizer: mobase.IOrganizer, state_manager: StateManager, parent=None):
         QThread.__init__(self, parent)
         self.__is_running = True
         self.__organizer = organizer
+        self.__state_manager = state_manager
         self.__mods_directory = self.__organizer.modsPath()
         self.__overwrite_directory = self.__organizer.overwritePath()
 
@@ -72,25 +196,27 @@ class RefreshListWorker(QThread):
 
         self._listDirsRecursive(search_dirpaths)
         for dirpath in search_dirpaths:
-            for filepath in self.__organizer.findFiles(path=dirpath, filter=lambda x: True):
+            for file_path in self.__organizer.findFiles(path=dirpath, filter=lambda x: True):
                 if not self.__is_running:
                     break
 
-                if "mohidden" in filepath:
+                if "mohidden" in file_path:
                     continue
 
-                if not os.path.exists(filepath):
+                if not os.path.exists(file_path):
                     continue
 
-                p = pathlib.Path(filepath)
+                p = pathlib.Path(file_path)
                 if is_relative_to(p, self.__mods_directory):
-                    filepath = os.path.join(*p.relative_to(self.__mods_directory).parts[1:])
+                    file_path = os.path.join(*p.relative_to(self.__mods_directory).parts[1:])
                 elif is_relative_to(p, self.__overwrite_directory):
-                    filepath = os.path.join(*p.relative_to(self.__overwrite_directory).parts[0:])
+                    file_path = os.path.join(*p.relative_to(self.__overwrite_directory).parts[0:])
                 else:
                     continue
 
-                self.add_item_signal.emit(filepath)
+                entry = self.__state_manager.getStateEntry(file_path)
+
+                self.add_item_signal.emit(entry)
 
         self.finished_signal.emit()
 
@@ -105,16 +231,13 @@ class DeployWorker(QThread):
     def __tr(self, str):
         return QCoreApplication.translate("LinkDeployWorker", str)
 
-    def __init__(self, organizer: mobase.IOrganizer, targetDir, originalDir, symlink, entries, parent=None):
+    def __init__(self, organizer: mobase.IOrganizer, state_manager: StateManager, symlink: bool, entries, parent=None):
         QThread.__init__(self, parent)
         self.__is_running = True
         self.__entries = entries
         self.__symlink = symlink
         self.__organizer = organizer
-        self.__target_dir = targetDir
-        self.__original_dir = originalDir
-        self.__mods_directory = self.__organizer.modsPath()
-        self.__overwrite_directory = self.__organizer.overwritePath()
+        self.__state_manager = state_manager
         self.__max_workers = max(1, multiprocessing.cpu_count() - 1)
 
     def run(self):
@@ -135,7 +258,7 @@ class DeployWorker(QThread):
 
                 mod = self.__organizer.getMod(origin)
                 if mod is None:
-                    qWarning("Unable to get mod: {}".format(mod_name.encode("utf-8")))
+                    qWarning("Unable to get mod: {}".format(mod.name().encode("utf-8")))
                     return {"entry": entry, "status": "failed"}
 
                 mod_path = mod.absolutePath()
@@ -219,7 +342,6 @@ class PluginWindow(QtWidgets.QDialog):
     def __init__(self, organizer: mobase.IOrganizer, parent=None):
         self.__organizer = organizer
 
-        self.__ready = False
         self.__deploy_worker = None
         self.__refresh_worker = None
         self.__cpucount = max(1, multiprocessing.cpu_count() - 1)
@@ -231,12 +353,16 @@ class PluginWindow(QtWidgets.QDialog):
         self.setWindowIcon(QtGui.QIcon(":/deorder/link_deploy"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
+        self.__target_data_dir = organizer.managedGame().dataDirectory().absolutePath()
+        self.__target_game_dir = organizer.managedGame().gameDirectory().absolutePath()
+
+        self.__state_file_dir = self.__target_game_dir
+        self.__state_file_path = os.path.join(self.__state_file_dir, ".mo2_state")
+
+        self.__state_manager = StateManager(self.__organizer, self.__target_data_dir, self.__target_game_dir, self.__state_file_path, self.__symlink)
+
         # Vertical Layout
         verticalLayout = QtWidgets.QVBoxLayout()
-
-        self.__targetDir = organizer.managedGame().dataDirectory().absolutePath()
-        # TODO: The following is not used yet
-        self.__originalDir = organizer.managedGame().dataDirectory().absolutePath() + "Original"
 
         # Vertical Layout -> Original Label
         self.noteLabel = QtWidgets.QLabel(self)
@@ -321,7 +447,7 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
             entry = root.child(item_index).data(0, Qt.UserRole)
             entry["item_index"] = item_index
             entries.append(entry)
-        self.__deploy_worker = DeployWorker(self.__organizer, self.__targetDir, self.__originalDir, self.__symlink, entries, self)
+        self.__deploy_worker = DeployWorker(self.__organizer, self.__state_manager, self.__symlink, entries, self)
 
         def set_item_status_callback(result):
             entry = result["entry"]
@@ -341,6 +467,7 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
         def finished_callback():
             self.statusLabel.setText(self.__tr("Finished deployment."))
             self.__deployButton.setDisabled(True)
+            self.__state_manager.saveState()
 
         self.__deploy_worker.set_item_status_signal.connect(set_item_status_callback)
         self.__deploy_worker.finished_signal.connect(finished_callback)
@@ -350,19 +477,21 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
     def _refreshList(self):
         self.mappingList.clear()
 
-        self.__refresh_worker = RefreshListWorker(self.__organizer, self)
+        self.__state_manager.loadState()
+        self.__refresh_worker = RefreshListWorker(self.__organizer, self.__state_manager, self)
 
         self.statusLabel.setText(self.__tr("Populating list. Please wait..."))
 
-        def add_item_callback(filepath):
-            item = QtWidgets.QTreeWidgetItem(self.mappingList, [filepath, "..."])
-            item.setData(0, Qt.UserRole, {"filepath": str(filepath)})
+        def add_item_callback(entry):
+            item = QtWidgets.QTreeWidgetItem(self.mappingList, [entry["file_path"], "..."])
+            item.setData(0, Qt.UserRole, entry)
             self.mappingList.addTopLevelItem(item)
 
         def finished_callback():
             self.statusLabel.setText(self.__tr("Ready for deployment."))
             self.mappingList.resizeColumnToContents(0)
             self.__deployButton.setDisabled(False)
+            self.__state_manager.saveState()
 
         self.__refresh_worker.add_item_signal.connect(add_item_callback)
         self.__refresh_worker.finished_signal.connect(finished_callback)
