@@ -1,18 +1,10 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"python.formatting.blackArgs": [
-			"--line-length",
-			"9999"
-		]
-	},
-	"extensions": {
-		"recommendations": [
-			"ms-python.python"
-		]
-	}
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "extensions": {
+    "recommendations": ["ms-python.python"]
+  }
 }

@@ -1,8 +1,10 @@
+from ast import Mod
 import os
 import glob
 import json
 import traceback
 import inspect
+import datetime
 
 import signal
 import functools
@@ -72,7 +74,9 @@ class RefreshListWorker(QThread):
 
         self._listDirsRecursive(search_dirpaths)
         for dirpath in search_dirpaths:
-            for filepath in self.__organizer.findFiles(path=dirpath, filter=lambda x: True):
+            for filepath in self.__organizer.findFiles(
+                path=dirpath, filter=lambda x: True
+            ):
                 if not self.__is_running:
                     break
 
@@ -84,9 +88,13 @@ class RefreshListWorker(QThread):
 
                 p = pathlib.Path(filepath)
                 if is_relative_to(p, self.__mods_directory):
-                    filepath = os.path.join(*p.relative_to(self.__mods_directory).parts[1:])
+                    filepath = os.path.join(
+                        *p.relative_to(self.__mods_directory).parts[1:]
+                    )
                 elif is_relative_to(p, self.__overwrite_directory):
-                    filepath = os.path.join(*p.relative_to(self.__overwrite_directory).parts[0:])
+                    filepath = os.path.join(
+                        *p.relative_to(self.__overwrite_directory).parts[0:]
+                    )
                 else:
                     continue
 
@@ -105,7 +113,15 @@ class DeployWorker(QThread):
     def __tr(self, str):
         return QCoreApplication.translate("LinkDeployWorker", str)
 
-    def __init__(self, organizer: mobase.IOrganizer, targetDir, originalDir, symlink, entries, parent=None):
+    def __init__(
+        self,
+        organizer: mobase.IOrganizer,
+        targetDir,
+        originalDir,
+        symlink,
+        entries,
+        parent=None,
+    ):
         QThread.__init__(self, parent)
         self.__is_running = True
         self.__entries = entries
@@ -135,7 +151,7 @@ class DeployWorker(QThread):
 
                 mod = self.__organizer.getMod(origin)
                 if mod is None:
-                    qWarning("Unable to get mod: {}".format(mod_name.encode("utf-8")))
+                    qWarning("Unable to get mod")
                     return {"entry": entry, "status": "failed"}
 
                 mod_path = mod.absolutePath()
@@ -148,7 +164,11 @@ class DeployWorker(QThread):
                     except FileExistsError:
                         pass
                     except:
-                        qWarning(self.__tr("Could not create path {}").format(target_dirpath).encode("utf-8"))
+                        qWarning(
+                            self.__tr("Could not create path {}")
+                            .format(target_dirpath)
+                            .encode("utf-8")
+                        )
                         return {"entry": entry, "status": "failed"}
 
                     try:
@@ -161,15 +181,32 @@ class DeployWorker(QThread):
                         if not os.path.samefile(source_path, target_path):
                             if not os.path.exists(target_path + ".mo2_original"):
                                 try:
-                                    os.rename(target_path, target_path + ".mo2_original")
+                                    os.rename(
+                                        target_path, target_path + ".mo2_original"
+                                    )
                                 except:
-                                    qWarning(self.__tr("Could not move away original {}").format(target_path).encode("utf-8"))
+                                    qWarning(
+                                        self.__tr("Could not move away original {}")
+                                        .format(target_path)
+                                        .encode("utf-8")
+                                    )
                                     return {"entry": entry, "status": "failed"}
                             else:
                                 try:
-                                    os.rename(target_path, target_path + ".mo2_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f"))
+                                    os.rename(
+                                        target_path,
+                                        target_path
+                                        + ".mo2_"
+                                        + datetime.datetime.now().strftime(
+                                            "%Y%m%d%H%M%S%f"
+                                        ),
+                                    )
                                 except:
-                                    qWarning(self.__tr("Could not move away {}").format(target_path).encode("utf-8"))
+                                    qWarning(
+                                        self.__tr("Could not move away {}")
+                                        .format(target_path)
+                                        .encode("utf-8")
+                                    )
                                     return {"entry": entry, "status": "failed"}
                             try:
                                 if self.__symlink:
@@ -178,16 +215,30 @@ class DeployWorker(QThread):
                                     os.link(source_path, target_path)
                                 return {"entry": entry, "status": "linked"}
                             except:
-                                qWarning(self.__tr("Could not create link {}, after moving away").format(target_path).encode("utf-8"))
+                                qWarning(
+                                    self.__tr(
+                                        "Could not create link {}, after moving away"
+                                    )
+                                    .format(target_path)
+                                    .encode("utf-8")
+                                )
                                 return {"entry": entry, "status": "failed"}
                         else:
                             return {"entry": entry, "status": "already deployed"}
                     except:
-                        qWarning(self.__tr("Could not create link {}").format(target_path).encode("utf-8"))
+                        qWarning(
+                            self.__tr("Could not create link {}")
+                            .format(target_path)
+                            .encode("utf-8")
+                        )
                         return {"entry": entry, "status": "failed"}
 
                 else:
-                    qWarning(self.__tr("Source path {} does not exist").format(source_path).encode("utf-8"))
+                    qWarning(
+                        self.__tr("Source path {} does not exist")
+                        .format(source_path)
+                        .encode("utf-8")
+                    )
                     return {"entry": entry, "status": "failed"}
             else:
                 qWarning(self.__tr("No origins found").encode("utf-8"))
@@ -196,7 +247,9 @@ class DeployWorker(QThread):
         def link_done_callback(entry, future):
             self.set_item_status_signal.emit(future.result())
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.__max_workers) as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.__max_workers
+        ) as executor:
             for entry in self.__entries:
                 if not self.__is_running:
                     break
@@ -236,7 +289,9 @@ class PluginWindow(QtWidgets.QDialog):
 
         self.__targetDir = organizer.managedGame().dataDirectory().absolutePath()
         # TODO: The following is not used yet
-        self.__originalDir = organizer.managedGame().dataDirectory().absolutePath() + "Original"
+        self.__originalDir = (
+            organizer.managedGame().dataDirectory().absolutePath() + "Original"
+        )
 
         # Vertical Layout -> Original Label
         self.noteLabel = QtWidgets.QLabel(self)
@@ -248,7 +303,9 @@ Note: (Un/re)depolying is not yet supported meaning you will have to reinstall t
 Note: that there is also no guarantee that the game will not touch and modify your mod files.
 Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
         """.format(
-                    self.__tr("soft links") if self.__symlink else self.__tr("hard links")
+                    self.__tr("soft links")
+                    if self.__symlink
+                    else self.__tr("hard links")
                 )
             )
         )
@@ -257,8 +314,12 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
 
         # Vertical Layout -> Target Label
         self.targetDirLabel = QtWidgets.QLabel(self)
-        self.targetDirLabel.setFrameStyle(QtWidgets.QFrame.Panel | QtWidgets.QFrame.Sunken)
-        self.targetDirLabel.setText(self.__tr("Deployment dir") + ":\n" + self.__targetDir)
+        self.targetDirLabel.setFrameStyle(
+            QtWidgets.QFrame.Panel | QtWidgets.QFrame.Sunken
+        )
+        self.targetDirLabel.setText(
+            self.__tr("Deployment dir") + ":\n" + self.__targetDir
+        )
 
         verticalLayout.addWidget(self.targetDirLabel)
 
@@ -321,7 +382,14 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
             entry = root.child(item_index).data(0, Qt.UserRole)
             entry["item_index"] = item_index
             entries.append(entry)
-        self.__deploy_worker = DeployWorker(self.__organizer, self.__targetDir, self.__originalDir, self.__symlink, entries, self)
+        self.__deploy_worker = DeployWorker(
+            self.__organizer,
+            self.__targetDir,
+            self.__originalDir,
+            self.__symlink,
+            entries,
+            self,
+        )
 
         def set_item_status_callback(result):
             entry = result["entry"]
@@ -336,7 +404,9 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
             if status == "failed":
                 item.setBackground(0, Dc.red)
             item.setForeground(0, Qt.black)
-            self.statusLabel.setText(self.__tr("{} {}").format(filepath, self.__tr(status)))
+            self.statusLabel.setText(
+                self.__tr("{} {}").format(filepath, self.__tr(status))
+            )
 
         def finished_callback():
             self.statusLabel.setText(self.__tr("Finished deployment."))
@@ -410,7 +480,14 @@ class PluginTool(mobase.IPluginTool):
         return bool(self.__organizer.pluginSetting(self.NAME, "enabled"))
 
     def settings(self):
-        return [mobase.PluginSetting("enabled", self.__tr("Enable plugin"), True), mobase.PluginSetting("symlink", self.__tr("Use symlinks/softlinks instead of hardlinks"), False)]
+        return [
+            mobase.PluginSetting("enabled", self.__tr("Enable plugin"), True),
+            mobase.PluginSetting(
+                "symlink",
+                self.__tr("Use symlinks/softlinks instead of hardlinks"),
+                False,
+            ),
+        ]
 
     def display(self):
         self.__window = PluginWindow(self.__organizer, self)
