@@ -1,11 +1,15 @@
 import os
 import re
-import sys
-import glob
 
-from PyQt5 import QtGui
-from PyQt5.QtCore import qDebug
-from PyQt5.QtCore import qWarning
+try:
+    from PyQt5 import QtGui
+except:
+    from PyQt6 import QtGui
+
+try:
+    from PyQt5.QtCore import qDebug, qWarning
+except:
+    from PyQt6.QtCore import qDebug, qWarning
 
 red = QtGui.QColor(255, 170, 170)
 green = QtGui.QColor(205, 222, 135)
@@ -129,7 +133,7 @@ def readLines(filename):
 
 
 def getModByName(organizer, name):
-    return organizer.getMod(name)
+    return organizer.modList().getMod(name)
 
 
 def getModStateByName(organizer, name):

@@ -6,13 +6,45 @@ import datetime
 import mobase
 from . import common as Dc
 
-import PyQt5.QtGui as QtGui
-import PyQt5.QtCore as QtCore
-import PyQt5.QtWidgets as QtWidgets
+try:
+    import PyQt5.QtGui as QtGui
+except:
+    import PyQt6.QtGui as QtGui
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtCore import qDebug, qCritical
-from PyQt5.QtCore import QCoreApplication
+    QAction = QtGui.QAction
+
+
+try:
+    import PyQt5.QtWidgets as QtWidgets
+
+    QAction = QtWidgets.QAction
+except:
+    import PyQt6.QtWidgets as QtWidgets
+
+try:
+    from PyQt5.QtCore import Qt
+
+    qtUserRole = Qt.UserRole
+    qtScrollBarAlwaysOff = Qt.ScrollBarAlwaysOff
+    qtCustomContextMenu = Qt.CustomContextMenu
+    qtWindowContextHelpButtonHint = Qt.WindowContextHelpButtonHint
+except:
+    from PyQt6.QtCore import Qt
+
+    qtUserRole = Qt.ItemDataRole.UserRole
+    qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
+    qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
+
+try:
+    from PyQt5.QtCore import qDebug, qCritical
+except:
+    from PyQt6.QtCore import qDebug, qCritical
+
+try:
+    from PyQt5.QtCore import QCoreApplication
+except:
+    from PyQt6.QtCore import QCoreApplication
 
 
 class PluginWindow(QtWidgets.QDialog):
@@ -28,7 +60,7 @@ class PluginWindow(QtWidgets.QDialog):
 
         self.resize(500, 500)
         self.setWindowIcon(QtGui.QIcon(":/deorder/sync_mod_order"))
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() & ~qtWindowContextHelpButtonHint)
 
         # Vertical Layout
         verticalLayout = QtWidgets.QVBoxLayout()
@@ -42,8 +74,8 @@ class PluginWindow(QtWidgets.QDialog):
         self.profileList.header().setVisible(True)
         self.profileList.headerItem().setText(0, self.__tr("Profile name"))
 
-        self.profileList.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.profileList.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.profileList.setContextMenuPolicy(qtCustomContextMenu)
+        self.profileList.setHorizontalScrollBarPolicy(qtScrollBarAlwaysOff)
         self.profileList.customContextMenuRequested.connect(self.openProfileMenu)
 
         verticalLayout.addWidget(self.profileList)
@@ -110,7 +142,7 @@ class PluginWindow(QtWidgets.QDialog):
         self.profileList.clear()
         for profileName in sorted(self.__profileInfo):
             item = QtWidgets.QTreeWidgetItem(self.profileList, [profileName])
-            item.setData(0, Qt.UserRole, {"profileName": profileName})
+            item.setData(0, qtUserRole, {"profileName": profileName})
             self.profileList.addTopLevelItem(item)
         self.profileList.resizeColumnToContents(0)
 
@@ -119,13 +151,13 @@ class PluginWindow(QtWidgets.QDialog):
         if selectedItems:
             menu = QtWidgets.QMenu()
 
-            selectedItemsData = [item.data(0, Qt.UserRole) for item in selectedItems]
+            selectedItemsData = [item.data(0, qtUserRole) for item in selectedItems]
             selectedProfiles = [
                 selectedItemData["profileName"]
                 for selectedItemData in selectedItemsData
             ]
 
-            syncAction = QtWidgets.QAction(
+            syncAction = QAction(
                 QtGui.QIcon(":/MO/gui/next"),
                 self.__tr("&Sync current profile mod order to"),
                 self,
@@ -133,7 +165,7 @@ class PluginWindow(QtWidgets.QDialog):
             syncAction.setEnabled(True)
             menu.addAction(syncAction)
 
-            action = menu.exec_(self.profileList.mapToGlobal(position))
+            action = menu.exec(self.profileList.mapToGlobal(position))
 
             try:
                 if action == syncAction:
@@ -198,19 +230,16 @@ class PluginTool(mobase.IPluginTool):
         self.__organizer = organizer
         return True
 
-    def isActive(self):
-        return bool(self.__organizer.pluginSetting(self.NAME, "enabled"))
-
     def settings(self):
         return [mobase.PluginSetting("enabled", self.__tr("Enable this plugin"), True)]
 
     def display(self):
         self.__window = PluginWindow(self.__organizer)
         self.__window.setWindowTitle(self.NAME)
-        self.__window.exec_()
+        self.__window.exec()
 
         # Refresh Mod Organizer mod list to reflect changes
-        self.__organizer.refreshModList()
+        self.__organizer.refresh()
 
     def icon(self):
 

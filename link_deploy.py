@@ -1,16 +1,7 @@
-from ast import Mod
 import os
-import glob
-import json
-import traceback
-import inspect
 import datetime
 
-import signal
 import functools
-import traceback
-import threading
-import subprocess
 
 import multiprocessing
 import concurrent.futures
@@ -19,21 +10,46 @@ import mobase
 import pathlib
 from . import common as Dc
 
-import PyQt5.QtGui as QtGui
-import PyQt5.QtCore as QtCore
-import PyQt5.QtWidgets as QtWidgets
+try:
+    import PyQt5.QtGui as QtGui
+except:
+    import PyQt6.QtGui as QtGui
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtCore import QThread
-from PyQt5.QtCore import QRunnable
-from PyQt5.QtCore import QThreadPool
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtCore import qDebug
-from PyQt5.QtCore import qWarning
-from PyQt5.QtCore import qCritical
-from PyQt5.QtCore import QCoreApplication
+try:
+    import PyQt5.QtWidgets as QtWidgets
 
-from PyQt5.QtWidgets import QTreeWidgetItem
+    QFramePanel = QtWidgets.QFrame.Panel
+    QFrameSunken = QtWidgets.QFrame.Sunken
+except:
+    import PyQt6.QtWidgets as QtWidgets
+
+    QFramePanel = QtWidgets.QFrame.Shape.Panel
+    QFrameSunken = QtWidgets.QFrame.Shadow.Sunken
+
+try:
+    from PyQt5.QtCore import (
+        Qt,
+        QThread,
+        pyqtSignal,
+        qWarning,
+        QCoreApplication,
+    )
+
+    qtBlack = Qt.black
+    qtUserRole = Qt.UserRole
+    qtWindowContextHelpButtonHint = Qt.WindowContextHelpButtonHint
+except:
+    from PyQt6.QtCore import (
+        Qt,
+        QThread,
+        pyqtSignal,
+        qWarning,
+        QCoreApplication,
+    )
+
+    qtBlack = Qt.GlobalColor.black
+    qtUserRole = Qt.ItemDataRole.UserRole
+    qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
 
 
 def is_relative_to(from_path, to_path):
@@ -282,7 +298,7 @@ class PluginWindow(QtWidgets.QDialog):
 
         self.resize(800, 800)
         self.setWindowIcon(QtGui.QIcon(":/deorder/link_deploy"))
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() & ~qtWindowContextHelpButtonHint)
 
         # Vertical Layout
         verticalLayout = QtWidgets.QVBoxLayout()
@@ -314,9 +330,7 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
 
         # Vertical Layout -> Target Label
         self.targetDirLabel = QtWidgets.QLabel(self)
-        self.targetDirLabel.setFrameStyle(
-            QtWidgets.QFrame.Panel | QtWidgets.QFrame.Sunken
-        )
+        self.targetDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
         self.targetDirLabel.setText(
             self.__tr("Deployment dir") + ":\n" + self.__targetDir
         )
@@ -325,7 +339,7 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
 
         # Vertical Layout -> Original Label
         # self.originalDirLabel = QtWidgets.QLabel(self)
-        # self.originalDirLabel.setFrameStyle(QtWidgets.QFrame.Panel | QtWidgets.QFrame.Sunken)
+        # self.originalDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
         # self.originalDirLabel.setText(self.__tr("Original dir") + ":\n" + self.__originalDir)
 
         # verticalLayout.addWidget(self.originalDirLabel)
@@ -345,7 +359,7 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
 
         # Vertical Layout -> Status Label
         self.statusLabel = QtWidgets.QLabel(self)
-        self.statusLabel.setFrameStyle(QtWidgets.QFrame.Panel | QtWidgets.QFrame.Sunken)
+        self.statusLabel.setFrameStyle(QFramePanel | QFrameSunken)
         self.statusLabel.setText("...")
 
         verticalLayout.addWidget(self.statusLabel)
@@ -379,7 +393,7 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
         entries = []
         root = self.mappingList.invisibleRootItem()
         for item_index in range(root.childCount()):
-            entry = root.child(item_index).data(0, Qt.UserRole)
+            entry = root.child(item_index).data(0, qtUserRole)
             entry["item_index"] = item_index
             entries.append(entry)
         self.__deploy_worker = DeployWorker(
@@ -403,7 +417,7 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
                 item.setBackground(0, Dc.green)
             if status == "failed":
                 item.setBackground(0, Dc.red)
-            item.setForeground(0, Qt.black)
+            item.setForeground(0, qtBlack)
             self.statusLabel.setText(
                 self.__tr("{} {}").format(filepath, self.__tr(status))
             )
@@ -426,7 +440,7 @@ Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
 
         def add_item_callback(filepath):
             item = QtWidgets.QTreeWidgetItem(self.mappingList, [filepath, "..."])
-            item.setData(0, Qt.UserRole, {"filepath": str(filepath)})
+            item.setData(0, qtUserRole, {"filepath": str(filepath)})
             self.mappingList.addTopLevelItem(item)
 
         def finished_callback():
@@ -474,14 +488,18 @@ class PluginTool(mobase.IPluginTool):
         from . import resources  # noqa
 
         self.__organizer = organizer
-        return True
-
-    def isActive(self):
-        return bool(self.__organizer.pluginSetting(self.NAME, "enabled"))
+        return bool(self.__organizer.pluginSetting(self.NAME, "agree"))
 
     def settings(self):
         return [
-            mobase.PluginSetting("enabled", self.__tr("Enable plugin"), True),
+            mobase.PluginSetting("enabled", self.__tr("Enable plugin"), False),
+            mobase.PluginSetting(
+                "agree",
+                self.__tr(
+                    "I agree that this plugin is experimental and may cause data loss."
+                ),
+                False,
+            ),
             mobase.PluginSetting(
                 "symlink",
                 self.__tr("Use symlinks/softlinks instead of hardlinks"),
@@ -492,7 +510,7 @@ class PluginTool(mobase.IPluginTool):
     def display(self):
         self.__window = PluginWindow(self.__organizer, self)
         self.__window.setWindowTitle(self.NAME)
-        self.__window.exec_()
+        self.__window.exec()
 
     def icon(self):
         return QtGui.QIcon(":/deorder/link_deploy")

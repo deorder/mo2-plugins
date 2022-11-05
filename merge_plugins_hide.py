@@ -6,15 +6,42 @@ import traceback
 import mobase
 from . import common as Dc
 
-import PyQt5.QtGui as QtGui
-import PyQt5.QtCore as QtCore
-import PyQt5.QtWidgets as QtWidgets
+try:
+    import PyQt5.QtGui as QtGui
+except:
+    import PyQt6.QtGui as QtGui
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtCore import qDebug
-from PyQt5.QtCore import qWarning
-from PyQt5.QtCore import qCritical
-from PyQt5.QtCore import QCoreApplication
+    QAction = QtGui.QAction
+
+try:
+    import PyQt5.QtWidgets as QtWidgets
+
+    QAction = QtWidgets.QAction
+    QAbstractItemViewExtendedSelection = QtWidgets.QAbstractItemView.ExtendedSelection
+except:
+    import PyQt6.QtWidgets as QtWidgets
+
+    QAbstractItemViewExtendedSelection = (
+        QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
+    )
+
+try:
+    from PyQt5.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication
+
+    qtBlack = Qt.black
+    qtUserRole = Qt.UserRole
+    qtScrollBarAlwaysOff = Qt.ScrollBarAlwaysOff
+    qtCustomContextMenu = Qt.CustomContextMenu
+    qtWindowContextHelpButtonHint = Qt.WindowContextHelpButtonHint
+
+except:
+    from PyQt6.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication
+
+    qtBlack = Qt.GlobalColor.black
+    qtUserRole = Qt.ItemDataRole.UserRole
+    qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
+    qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
 
 
 class PluginWindow(QtWidgets.QDialog):
@@ -35,7 +62,7 @@ class PluginWindow(QtWidgets.QDialog):
 
         self.resize(500, 500)
         self.setWindowIcon(QtGui.QIcon(":/deorder/merge_plugins_hide"))
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() & ~qtWindowContextHelpButtonHint)
 
         # Vertical Layout
         verticalLayout = QtWidgets.QVBoxLayout()
@@ -50,12 +77,10 @@ class PluginWindow(QtWidgets.QDialog):
         self.mergedModList.headerItem().setText(0, self.__tr("Merge name"))
         self.mergedModList.headerItem().setText(1, self.__tr("Plugins state"))
 
-        self.mergedModList.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.mergedModList.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.mergedModList.setContextMenuPolicy(qtCustomContextMenu)
+        self.mergedModList.setHorizontalScrollBarPolicy(qtScrollBarAlwaysOff)
         self.mergedModList.customContextMenuRequested.connect(self.openMergedModMenu)
-        self.mergedModList.setSelectionMode(
-            QtWidgets.QAbstractItemView.ExtendedSelection
-        )
+        self.mergedModList.setSelectionMode(QAbstractItemViewExtendedSelection)
 
         verticalLayout.addWidget(self.mergedModList)
 
@@ -305,10 +330,10 @@ class PluginWindow(QtWidgets.QDialog):
             for x in range(2):
                 if color:
                     item.setBackground(x, color)
-                    item.setForeground(x, Qt.black)
+                    item.setForeground(x, qtBlack)
                 item.setData(
                     x,
-                    Qt.UserRole,
+                    qtUserRole,
                     {"modName": modName, "modPluginsState": modPluginsState},
                 )
             self.mergedModList.addTopLevelItem(item)
@@ -319,7 +344,7 @@ class PluginWindow(QtWidgets.QDialog):
         if selectedItems:
             menu = QtWidgets.QMenu()
 
-            selectedItemsData = [item.data(0, Qt.UserRole) for item in selectedItems]
+            selectedItemsData = [item.data(0, qtUserRole) for item in selectedItems]
             selectedModsWithEnabled = [
                 selectedItemData["modName"]
                 for selectedItemData in selectedItemsData
@@ -331,7 +356,7 @@ class PluginWindow(QtWidgets.QDialog):
                 if (selectedItemData["modPluginsState"] in Dc.SomeModPluginsActive)
             ]
 
-            enableAction = QtWidgets.QAction(
+            enableAction = QAction(
                 QtGui.QIcon(":/MO/gui/active"), self.__tr("&Enable plugins"), self
             )
             enableAction.setEnabled(False)
@@ -339,7 +364,7 @@ class PluginWindow(QtWidgets.QDialog):
             if selectedModsWithEnabled:
                 enableAction.setEnabled(True)
 
-            disableAction = QtWidgets.QAction(
+            disableAction = QAction(
                 QtGui.QIcon(":/MO/gui/inactive"), self.__tr("&Disable plugins"), self
             )
             disableAction.setEnabled(False)
@@ -347,7 +372,7 @@ class PluginWindow(QtWidgets.QDialog):
             if selectedModsWithDisabled:
                 disableAction.setEnabled(True)
 
-            action = menu.exec_(self.mergedModList.mapToGlobal(position))
+            action = menu.exec(self.mergedModList.mapToGlobal(position))
 
             # Catch and log exceptional side-effects
             try:
@@ -451,9 +476,6 @@ class PluginTool(mobase.IPluginTool):
         self.__organizer = organizer
         return True
 
-    def isActive(self):
-        return bool(self.__organizer.pluginSetting(self.NAME, "enabled"))
-
     def settings(self):
         return [
             mobase.PluginSetting("enabled", self.__tr("Enable this plugin"), True),
@@ -473,7 +495,7 @@ class PluginTool(mobase.IPluginTool):
     def display(self):
         self.__window = PluginWindow(self.__organizer, self)
         self.__window.setWindowTitle(self.NAME)
-        self.__window.exec_()
+        self.__window.exec()
 
         # Refresh Mod Organizer mod list to reflect changes where files were changed
         # outside MO2
@@ -481,7 +503,7 @@ class PluginTool(mobase.IPluginTool):
             "mohidden",
             "optional",
         ]:
-            self.__organizer.refreshModList()
+            self.__organizer.refresh()
 
     def icon(self):
         return QtGui.QIcon(":/deorder/merge_plugins_hide")

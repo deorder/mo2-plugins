@@ -198,3 +198,5 @@ compile_commands.json
 
 python_browser.py
 .vscode
+
+PyQt6-stubs
