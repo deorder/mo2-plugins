@@ -1,15 +1,9 @@
 import os
 import re
 
-try:
-    from PyQt5 import QtGui
-except:
-    from PyQt6 import QtGui
+from PyQt6 import QtGui
 
-try:
-    from PyQt5.QtCore import qDebug, qWarning
-except:
-    from PyQt6.QtCore import qDebug, qWarning
+from PyQt6.QtCore import qDebug, qWarning
 
 red = QtGui.QColor(255, 170, 170)
 green = QtGui.QColor(205, 222, 135)
@@ -117,7 +111,7 @@ def tryCreateDir(path):
     qDebug("Creating dir {}".format(path).encode("utf-8"))
     try:
         # Attempt creating directory
-        os.mkdir(path)
+        os.makedirs(path)
     except:
         # Ignore exception
         pass

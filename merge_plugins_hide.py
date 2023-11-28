@@ -6,42 +6,23 @@ import traceback
 import mobase
 from . import common as Dc
 
-try:
-    import PyQt5.QtGui as QtGui
-except:
-    import PyQt6.QtGui as QtGui
+import PyQt6.QtGui as QtGui
 
-    QAction = QtGui.QAction
+QAction = QtGui.QAction
 
-try:
-    import PyQt5.QtWidgets as QtWidgets
+import PyQt6.QtWidgets as QtWidgets
 
-    QAction = QtWidgets.QAction
-    QAbstractItemViewExtendedSelection = QtWidgets.QAbstractItemView.ExtendedSelection
-except:
-    import PyQt6.QtWidgets as QtWidgets
+QAbstractItemViewExtendedSelection = (
+    QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
+)
 
-    QAbstractItemViewExtendedSelection = (
-        QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
-    )
+from PyQt6.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication
 
-try:
-    from PyQt5.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication
-
-    qtBlack = Qt.black
-    qtUserRole = Qt.UserRole
-    qtScrollBarAlwaysOff = Qt.ScrollBarAlwaysOff
-    qtCustomContextMenu = Qt.CustomContextMenu
-    qtWindowContextHelpButtonHint = Qt.WindowContextHelpButtonHint
-
-except:
-    from PyQt6.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication
-
-    qtBlack = Qt.GlobalColor.black
-    qtUserRole = Qt.ItemDataRole.UserRole
-    qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-    qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
-    qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
+qtBlack = Qt.GlobalColor.black
+qtUserRole = Qt.ItemDataRole.UserRole
+qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
+qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
 
 
 class PluginWindow(QtWidgets.QDialog):
