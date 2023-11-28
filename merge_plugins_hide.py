@@ -152,7 +152,7 @@ class PluginWindow(QtWidgets.QDialog):
     def getPluginStateByName(self, name):
         if name in self.__pluginInfo:
             pluginInfo = self.__pluginInfo[name.lower()]
-            if self.__hide_type == "mohidden":
+            if self.__hide_type.lower() == "mohidden":
                 if all(
                     [
                         os.path.isfile(
@@ -173,7 +173,7 @@ class PluginWindow(QtWidgets.QDialog):
                     ]
                 ):
                     return Dc.PluginState(Dc.PluginState.INACTIVE)
-            if self.__hide_type == "optional":
+            if self.__hide_type.lower() == "optional":
                 if all(
                     [
                         os.path.isfile(
@@ -194,7 +194,7 @@ class PluginWindow(QtWidgets.QDialog):
                     ]
                 ):
                     return Dc.PluginState(Dc.PluginState.INACTIVE)
-            if self.__hide_type == "disable":
+            if self.__hide_type.lower() == "disable":
                 if all(
                     [
                         os.path.isfile(
