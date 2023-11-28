@@ -6,45 +6,23 @@ import datetime
 import mobase
 from . import common as Dc
 
-try:
-    import PyQt5.QtGui as QtGui
-except:
-    import PyQt6.QtGui as QtGui
+import PyQt6.QtGui as QtGui
 
-    QAction = QtGui.QAction
+QAction = QtGui.QAction
 
 
-try:
-    import PyQt5.QtWidgets as QtWidgets
+import PyQt6.QtWidgets as QtWidgets
 
-    QAction = QtWidgets.QAction
-except:
-    import PyQt6.QtWidgets as QtWidgets
+from PyQt6.QtCore import Qt
 
-try:
-    from PyQt5.QtCore import Qt
+qtUserRole = Qt.ItemDataRole.UserRole
+qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
+qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
 
-    qtUserRole = Qt.UserRole
-    qtScrollBarAlwaysOff = Qt.ScrollBarAlwaysOff
-    qtCustomContextMenu = Qt.CustomContextMenu
-    qtWindowContextHelpButtonHint = Qt.WindowContextHelpButtonHint
-except:
-    from PyQt6.QtCore import Qt
+from PyQt6.QtCore import qDebug, qCritical
 
-    qtUserRole = Qt.ItemDataRole.UserRole
-    qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-    qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
-    qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
-
-try:
-    from PyQt5.QtCore import qDebug, qCritical
-except:
-    from PyQt6.QtCore import qDebug, qCritical
-
-try:
-    from PyQt5.QtCore import QCoreApplication
-except:
-    from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication
 
 
 class PluginWindow(QtWidgets.QDialog):
