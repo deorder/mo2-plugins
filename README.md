@@ -8,6 +8,7 @@
 ## Installation
 
 Download the latest `.zip` file from the release page and extract it inside Mod Organizer 2's `plugins/` folder.
+Rename the newly extracted folder to for example `deorder`, so dots in the folder name will not result in errors.
 
 The plugin will be added to the `Tools` (icon with puzzle pieces) menu.
 
