@@ -4,44 +4,28 @@ import functools
 import multiprocessing
 import concurrent.futures
 import pathlib
-import threading
-from typing import Generator, List, Dict, Optional
-from queue import Queue
 
-import mobase
+from . import common as Dc
 
-try:
-    from PyQt5 import QtGui, QtWidgets
-    from PyQt5.QtCore import (
-        Qt,
-        QThread,
-        pyqtSignal,
-        qWarning,
-        qInfo,
-        QCoreApplication,
-    )
+import PyQt6.QtGui as QtGui
 
-    QFramePanel = QtWidgets.QFrame.Panel
-    QFrameSunken = QtWidgets.QFrame.Sunken
-    qtBlack = Qt.black
-    qtUserRole = Qt.UserRole
-    qtWindowContextHelpButtonHint = Qt.WindowContextHelpButtonHint
-except ImportError:
-    from PyQt6 import QtGui, QtWidgets
-    from PyQt6.QtCore import (
-        Qt,
-        QThread,
-        pyqtSignal,
-        qWarning,
-        qInfo,
-        QCoreApplication,
-    )
+import PyQt6.QtWidgets as QtWidgets
 
-    QFramePanel = QtWidgets.QFrame.Shape.Panel
-    QFrameSunken = QtWidgets.QFrame.Shadow.Sunken
-    qtBlack = Qt.GlobalColor.black
-    qtUserRole = Qt.ItemDataRole.UserRole
-    qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
+QFramePanel = QtWidgets.QFrame.Shape.Panel
+QFrameSunken = QtWidgets.QFrame.Shadow.Sunken
+
+from PyQt6.QtCore import (
+    Qt,
+    QThread,
+    pyqtSignal,
+    qWarning,
+    QCoreApplication,
+)
+
+qtBlack = Qt.GlobalColor.black
+qtUserRole = Qt.ItemDataRole.UserRole
+qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
+
 
 
 class FileEntry:

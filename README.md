@@ -23,30 +23,22 @@ You can choose between the following plugin hide methods by changing the `hide-t
 
 ## Build
 
-### Recommended
+**Note:** This plugin uses Qt 6.6.1 to compile resources. If you are using a different version of Qt you will have to edit `build.ps1` to point to the `rcc.exe` of your Qt version.
 
-#### First time
+### First time
+
+- Install Qt 6.6.1: <https://www.qt.io/download-qt-installer>
 
 - Run the following inside this folder: `python3 -m venv venv`
 
-- Activate env if using PowerShell: .\venv\scripts\Activate.ps1
-- Activate env if using CMD: call venv/scripts/activate.bat
+- Activate env: .\venv\scripts\Activate.ps1
 
 - Run: pip install PyQt5
 
-- Run: `build.bat` to build the resources
+- Run: `build.ps1` to build the resources
 
-#### From then on
+### From then on
 
-- Activate env if using PowerShell: .\venv\scripts\Activate.ps1
-- Activate env if using CMD: call venv/scripts/activate.bat
+- Activate env: .\venv\scripts\Activate.ps1
 
-- Run: `build.bat` to build the resources
-
-### Alternative
-
-- Download: https://github.com/pyqt/python-qt5/tree/master/PyQt5
-
-- Copy & paste the `pyqt5` directory inside this directory
-
-- Run `build.bat` to build the resources
+- Run: `build.ps1` to build the resources

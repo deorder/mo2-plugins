@@ -6,42 +6,23 @@ import traceback
 import mobase
 from . import common as Dc
 
-try:
-    import PyQt5.QtGui as QtGui
-except:
-    import PyQt6.QtGui as QtGui
+import PyQt6.QtGui as QtGui
 
-    QAction = QtGui.QAction
+QAction = QtGui.QAction
 
-try:
-    import PyQt5.QtWidgets as QtWidgets
+import PyQt6.QtWidgets as QtWidgets
 
-    QAction = QtWidgets.QAction
-    QAbstractItemViewExtendedSelection = QtWidgets.QAbstractItemView.ExtendedSelection
-except:
-    import PyQt6.QtWidgets as QtWidgets
+QAbstractItemViewExtendedSelection = (
+    QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
+)
 
-    QAbstractItemViewExtendedSelection = (
-        QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
-    )
+from PyQt6.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication
 
-try:
-    from PyQt5.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication
-
-    qtBlack = Qt.black
-    qtUserRole = Qt.UserRole
-    qtScrollBarAlwaysOff = Qt.ScrollBarAlwaysOff
-    qtCustomContextMenu = Qt.CustomContextMenu
-    qtWindowContextHelpButtonHint = Qt.WindowContextHelpButtonHint
-
-except:
-    from PyQt6.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication
-
-    qtBlack = Qt.GlobalColor.black
-    qtUserRole = Qt.ItemDataRole.UserRole
-    qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-    qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
-    qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
+qtBlack = Qt.GlobalColor.black
+qtUserRole = Qt.ItemDataRole.UserRole
+qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
+qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
 
 
 class PluginWindow(QtWidgets.QDialog):
@@ -171,7 +152,7 @@ class PluginWindow(QtWidgets.QDialog):
     def getPluginStateByName(self, name):
         if name in self.__pluginInfo:
             pluginInfo = self.__pluginInfo[name.lower()]
-            if self.__hide_type == "mohidden":
+            if self.__hide_type.lower() == "mohidden":
                 if all(
                     [
                         os.path.isfile(
@@ -192,7 +173,7 @@ class PluginWindow(QtWidgets.QDialog):
                     ]
                 ):
                     return Dc.PluginState(Dc.PluginState.INACTIVE)
-            if self.__hide_type == "optional":
+            if self.__hide_type.lower() == "optional":
                 if all(
                     [
                         os.path.isfile(
@@ -213,7 +194,7 @@ class PluginWindow(QtWidgets.QDialog):
                     ]
                 ):
                     return Dc.PluginState(Dc.PluginState.INACTIVE)
-            if self.__hide_type == "disable":
+            if self.__hide_type.lower() == "disable":
                 if all(
                     [
                         os.path.isfile(
