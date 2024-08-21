@@ -2,46 +2,68 @@
 
 ## Description
 
-- **Merge Plugins Hide**: Hide / unhide plugins that were merged using `Merge Plugins` or `zMerge`
-- **Sync Mod Order**: Sync mod order from current profile to another while keeping the (enabled/disabled) state intact
+This repository contains two Mod Organizer 2 plugins:
+
+1. **Merge Plugins Hide**: Allows hiding or unhiding plugins that were merged using `Merge Plugins` or `zMerge`.
+2. **Sync Mod Order**: Synchronizes mod order from the current profile to another while preserving the enabled/disabled state of mods.
 
 ## Installation
 
-Download the latest `.zip` file from the release page and extract it inside Mod Organizer 2's `plugins/` folder.
-Rename the newly extracted folder to for example `deorder`, so dots in the folder name will not result in errors.
-
-The plugin will be added to the `Tools` (icon with puzzle pieces) menu.
+1. Download the latest `.zip` file from the [Releases](https://github.com/your-repo/releases) page.
+2. Extract the contents into Mod Organizer 2's `plugins/` folder.
+3. Rename the extracted folder to avoid potential errors (e.g., `deorder`).
+4. The plugins will appear in the `Tools` menu (puzzle piece icon) within Mod Organizer 2.
 
 ## Merge Plugins Hide
 
-**Note:** When using zMerge to merge mods Mator recommends to use zMerge's built-in functionality to disable plugins. If you use this zMerge will disable the plugins for you. If you still want to use `Merge Plugins Hide` for example to keep track of the state of the plugins that are merged and quickly enable/disable them you can also set the `hide-type` to `disable` to use the same method as zMerge uses.
+This plugin offers flexibility in managing merged plugins.
 
-You can choose between the following plugin hide methods by changing the `hide-type` setting:
+### Hide Methods
+Configure the hiding method by changing the `hide-type` setting:
 
-- **mohidden**: Hide using the MO2 virtual file system by adding `.mohidden` to the plugin file
-- **optional**: Hide by moving the plugin file to the `optional` directory inside the mod
-- **disable**: Hide by disabling the plugin
+1. **mohidden**: Hides plugins using MO2's virtual file system by appending `.mohidden` to the plugin file.
+2. **optional**: Hides plugins by moving them to an `optional` directory within the mod.
+3. **disable**: Hides plugins by disabling them (compatible with zMerge's method).
 
-## Build
+## Sync Mod Order
 
-### Pre-requisites
+This plugin allows you to synchronize mod orders between profiles while maintaining the enabled/disabled states of individual mods.
 
-- Python 3.12+
+## Build Instructions
 
-### First time
+### Prerequisites
+- Python 3.12 or newer
+- Qt 6.x or newer (installed in `C:\Qt`)
 
-- Install Qt: <https://www.qt.io/download-qt-installer>, make sure it is installed in C:\Qt.
+### First-Time Setup
+1. Install Qt from: https://www.qt.io/download-qt-installer
+   Make sure to install it in `C:\Qt`.
+2. Open a terminal in the project directory.
+3. Create a virtual environment:
+   ```
+   python3 -m venv .venv
+   ```
+4. Activate the virtual environment:
+   ```
+   .\.venv\Scripts\Activate.ps1
+   ```
+5. Install required packages:
+   ```
+   pip install -r requirements.txt
+   ```
+6. Build the resources:
+   ```
+   .\build.ps1
+   ```
 
-- Run the following inside this folder: `python3 -m venv .venv`
+### Subsequent Builds
+1. Activate the virtual environment (if not already activated):
+   ```
+   .\.venv\Scripts\Activate.ps1
+   ```
+2. Run the build script:
+   ```
+   .\build.ps1
+   ```
 
-- Activate env: .\.venv\scripts\Activate.ps1
-
-- Run: pip install -r requirements.txt
-
-- Run: `build.ps1` to build the resources
-
-### From then on
-
-- Activate env: .\venv\scripts\Activate.ps1
-
-- Run: `build.ps1` to build the resources
+This will compile the necessary resources for the plugins.
