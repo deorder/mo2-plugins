@@ -1,13 +1,10 @@
 import os
 import datetime
-
 import functools
-
 import multiprocessing
 import concurrent.futures
-
-import mobase
 import pathlib
+
 from . import common as Dc
 
 import PyQt6.QtGui as QtGui
@@ -30,7 +27,14 @@ qtUserRole = Qt.ItemDataRole.UserRole
 qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
 
 
-def is_relative_to(from_path, to_path):
+
+class FileEntry:
+    def __init__(self, filepath: str, filetreeentry: mobase.FileTreeEntry = None):
+        self.filepath = filepath
+        self.filetreeentry = filetreeentry
+
+
+def isRelativeTo(from_path: pathlib.Path, to_path: pathlib.Path) -> bool:
     try:
         from_path.relative_to(to_path)
         return True
@@ -38,129 +42,142 @@ def is_relative_to(from_path, to_path):
         return False
 
 
-class RefreshListWorker(QThread):
-    finished_signal = pyqtSignal()
-    add_item_signal = pyqtSignal(str)
+def listDirectoriesRecursive(
+    organizer: mobase.IOrganizer, prefix: str = ""
+) -> Generator[str, None, None]:
+    dirpaths = organizer.listDirectories(prefix)
+    for dirpath in dirpaths:
+        full_path = os.path.join(prefix, dirpath)
+        yield full_path
+        yield from listDirectoriesRecursive(organizer, full_path)
 
-    __organizer: mobase.IOrganizer
 
-    def __tr(self, str):
-        return QCoreApplication.translate("LinkDeployRefreshWorker", str)
+def generateEntries(
+    organizer: mobase.IOrganizer,
+) -> Generator[FileEntry, None, None]:
+    mods_directory = organizer.modsPath()
+    overwrite_directory = organizer.overwritePath()
+    data_dir = organizer.managedGame().dataDirectory().absolutePath()
 
-    def __init__(self, organizer: mobase.IOrganizer, parent=None):
-        QThread.__init__(self, parent)
-        self.__is_running = True
-        self.__organizer = organizer
-        self.__mods_directory = self.__organizer.modsPath()
-        self.__overwrite_directory = self.__organizer.overwritePath()
+    for dirpath in listDirectoriesRecursive(organizer):
+        for filepath in organizer.findFiles(path=dirpath, filter=lambda x: True):
+            if "mohidden" in filepath or not os.path.exists(filepath):
+                continue
 
-    # From: https://github.com/LostDragonist/MO2-Plugins
-    def _listDirsRecursive(self, search_dirpaths, prefix=""):
-        dirpaths = self.__organizer.listDirectories(prefix)
-        for dirpath in dirpaths:
-            dirpath = os.path.join(prefix, dirpath)
-            search_dirpaths.append(dirpath)
-            self._listDirsRecursive(search_dirpaths, dirpath)
+            p = pathlib.Path(filepath)
+            if isRelativeTo(p, pathlib.Path(mods_directory)):
+                filepath = os.path.join(*p.relative_to(mods_directory).parts[1:])
+            elif isRelativeTo(p, pathlib.Path(overwrite_directory)):
+                filepath = os.path.join(*p.relative_to(overwrite_directory).parts[0:])
+            elif isRelativeTo(p, pathlib.Path(data_dir)):
+                filepath = os.path.join(*p.relative_to(data_dir).parts[1:])
+            else:
+                qWarning(
+                    QCoreApplication.translate("LinkDeployWorker", "Unknown path {}")
+                    .format(filepath)
+                    .encode("utf-8")
+                )
+                continue
 
-    def run(self):
-        # Adapted from: https://github.com/LostDragonist/MO2-Plugins
-        search_dirpaths = [""]
-
-        self._listDirsRecursive(search_dirpaths)
-        for dirpath in search_dirpaths:
-            for filepath in self.__organizer.findFiles(
-                path=dirpath, filter=lambda x: True
-            ):
-                if not self.__is_running:
-                    break
-
-                if "mohidden" in filepath:
-                    continue
-
-                if not os.path.exists(filepath):
-                    continue
-
-                p = pathlib.Path(filepath)
-                if is_relative_to(p, self.__mods_directory):
-                    filepath = os.path.join(
-                        *p.relative_to(self.__mods_directory).parts[1:]
-                    )
-                elif is_relative_to(p, self.__overwrite_directory):
-                    filepath = os.path.join(
-                        *p.relative_to(self.__overwrite_directory).parts[0:]
-                    )
-                else:
-                    continue
-
-                self.add_item_signal.emit(filepath)
-
-        self.finished_signal.emit()
-
-    def stop(self):
-        self.__is_running = False
+            yield FileEntry(filepath)
 
 
 class DeployWorker(QThread):
-    finished_signal = pyqtSignal()
-    set_item_status_signal = pyqtSignal(dict)
+    finish_signal = pyqtSignal()
+    message_signal = pyqtSignal(dict)
 
-    def __tr(self, str):
-        return QCoreApplication.translate("LinkDeployWorker", str)
+    def __tr(self, text: str) -> str:
+        return QCoreApplication.translate("LinkDeployWorker", text)
 
     def __init__(
         self,
         organizer: mobase.IOrganizer,
-        targetDir,
-        originalDir,
-        symlink,
-        entries,
-        parent=None,
-    ):
-        QThread.__init__(self, parent)
+        dataTargetDir: str,
+        gameTargetDir: str,
+        symlink: bool,
+        redirect_root: bool,
+        entries_generator: Generator[Dict[str, str], None, None],
+        parent: Optional[QtWidgets.QWidget] = None,
+    ) -> None:
+        super().__init__(parent)
         self.__is_running = True
-        self.__entries = entries
+        self.__entries_generator = entries_generator
         self.__symlink = symlink
         self.__organizer = organizer
-        self.__target_dir = targetDir
-        self.__original_dir = originalDir
-        self.__mods_directory = self.__organizer.modsPath()
-        self.__overwrite_directory = self.__organizer.overwritePath()
-        self.__max_workers = max(1, multiprocessing.cpu_count() - 1)
+        self.__data_target_dir = dataTargetDir
+        self.__game_target_dir = gameTargetDir
+        self.__redirect_root = redirect_root
+        self.__max_workers = min(4, max(1, multiprocessing.cpu_count() - 1))
 
-    def run(self):
-        def link_task(entry):
+    def run(self) -> None:
+        def link_task(entry: Dict[str, str]) -> Dict[str, str]:
             if not self.__is_running:
                 return {"entry": entry, "status": "canceled"}
 
             origins = self.__organizer.getFileOrigins(entry["filepath"])
-            if origins[0]:
-                origin = origins[0]
-                filepath = entry["filepath"]
+            if not origins[0]:
+                qWarning(self.__tr("No origins found").encode("utf-8"))
+                return {"entry": entry, "status": "failed"}
 
-                if "mohidden" in filepath:
-                    return {"entry": entry, "status": "skipped"}
+            origin = origins[0]
+            filepath = entry["filepath"]
+            filepathsegments = filepath.split(os.sep)
 
-                target_path = os.path.join(self.__target_dir, filepath)
-                target_dirpath = os.path.dirname(target_path)
+            if "mohidden" in filepathsegments:
+                return {"entry": entry, "status": "skipped"}
 
-                mod = self.__organizer.getMod(origin)
-                if mod is None:
-                    qWarning("Unable to get mod")
-                    return {"entry": entry, "status": "failed"}
+            target_path = (
+                os.path.join(self.__game_target_dir, *filepathsegments[1:])
+                if self.__redirect_root and filepathsegments[0] == "root"
+                else os.path.join(self.__data_target_dir, filepath)
+            )
 
-                mod_path = mod.absolutePath()
+            target_dirpath = os.path.dirname(target_path)
+            mod = self.__organizer.modList().getMod(origin)
+            if mod is None:
+                qWarning(self.__tr("Unable to get mod").encode("utf-8"))
+                return {"entry": entry, "status": "failed"}
 
-                source_path = os.path.join(mod_path, filepath)
-                if os.path.exists(source_path):
+            source_path = os.path.join(mod.absolutePath(), filepath)
+            if not os.path.exists(source_path):
+                qWarning(
+                    self.__tr("Source path {} does not exist")
+                    .format(source_path)
+                    .encode("utf-8")
+                )
+                return {"entry": entry, "status": "failed"}
 
+            try:
+                os.makedirs(target_dirpath, exist_ok=True)
+            except Exception as e:
+                qWarning(
+                    self.__tr("Could not create path {}: {}")
+                    .format(target_dirpath, str(e))
+                    .encode("utf-8")
+                )
+                return {"entry": entry, "status": "failed"}
+
+            try:
+                if self.__symlink:
+                    os.symlink(source_path, target_path)
+                else:
+                    os.link(source_path, target_path)
+                return {"entry": entry, "status": "linked"}
+            except FileExistsError:
+                if not os.path.samefile(source_path, target_path):
+                    backup_path = (
+                        target_path + ".mo2_original"
+                        if not os.path.exists(target_path + ".mo2_original")
+                        else target_path
+                        + ".mo2_"
+                        + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+                    )
                     try:
-                        os.makedirs(target_dirpath, exist_ok=True)
-                    except FileExistsError:
-                        pass
-                    except:
+                        os.rename(target_path, backup_path)
+                    except Exception as e:
                         qWarning(
-                            self.__tr("Could not create path {}")
-                            .format(target_dirpath)
+                            self.__tr("Could not move away original {}: {}")
+                            .format(target_path, str(e))
                             .encode("utf-8")
                         )
                         return {"entry": entry, "status": "failed"}
@@ -171,88 +188,40 @@ class DeployWorker(QThread):
                         else:
                             os.link(source_path, target_path)
                         return {"entry": entry, "status": "linked"}
-                    except FileExistsError:
-                        if not os.path.samefile(source_path, target_path):
-                            if not os.path.exists(target_path + ".mo2_original"):
-                                try:
-                                    os.rename(
-                                        target_path, target_path + ".mo2_original"
-                                    )
-                                except:
-                                    qWarning(
-                                        self.__tr("Could not move away original {}")
-                                        .format(target_path)
-                                        .encode("utf-8")
-                                    )
-                                    return {"entry": entry, "status": "failed"}
-                            else:
-                                try:
-                                    os.rename(
-                                        target_path,
-                                        target_path
-                                        + ".mo2_"
-                                        + datetime.datetime.now().strftime(
-                                            "%Y%m%d%H%M%S%f"
-                                        ),
-                                    )
-                                except:
-                                    qWarning(
-                                        self.__tr("Could not move away {}")
-                                        .format(target_path)
-                                        .encode("utf-8")
-                                    )
-                                    return {"entry": entry, "status": "failed"}
-                            try:
-                                if self.__symlink:
-                                    os.symlink(source_path, target_path)
-                                else:
-                                    os.link(source_path, target_path)
-                                return {"entry": entry, "status": "linked"}
-                            except:
-                                qWarning(
-                                    self.__tr(
-                                        "Could not create link {}, after moving away"
-                                    )
-                                    .format(target_path)
-                                    .encode("utf-8")
-                                )
-                                return {"entry": entry, "status": "failed"}
-                        else:
-                            return {"entry": entry, "status": "already deployed"}
-                    except:
+                    except Exception as e:
                         qWarning(
-                            self.__tr("Could not create link {}")
-                            .format(target_path)
+                            self.__tr("Could not create link {}: {}")
+                            .format(target_path, str(e))
                             .encode("utf-8")
                         )
                         return {"entry": entry, "status": "failed"}
-
                 else:
-                    qWarning(
-                        self.__tr("Source path {} does not exist")
-                        .format(source_path)
-                        .encode("utf-8")
-                    )
-                    return {"entry": entry, "status": "failed"}
-            else:
-                qWarning(self.__tr("No origins found").encode("utf-8"))
+                    return {"entry": entry, "status": "already deployed"}
+            except Exception as e:
+                qWarning(
+                    self.__tr("Could not create link {}: {}")
+                    .format(target_path, str(e))
+                    .encode("utf-8")
+                )
                 return {"entry": entry, "status": "failed"}
 
-        def link_done_callback(entry, future):
-            self.set_item_status_signal.emit(future.result())
+        def link_done_callback(
+            entry: Dict[str, str], future: concurrent.futures.Future
+        ) -> None:
+            self.message_signal.emit(future.result())
 
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=self.__max_workers
         ) as executor:
-            for entry in self.__entries:
+            for entry in self.__entries_generator:
                 if not self.__is_running:
                     break
                 future = executor.submit(link_task, entry)
                 future.add_done_callback(functools.partial(link_done_callback, entry))
 
-        self.finished_signal.emit()
+        self.finish_signal.emit()
 
-    def stop(self):
+    def stop(self) -> None:
         self.__is_running = False
 
 
@@ -263,212 +232,276 @@ class PluginWindow(QtWidgets.QDialog):
     def __tr(self, str):
         return QCoreApplication.translate("LinkDeployWindow", str)
 
-    def __init__(self, organizer: mobase.IOrganizer, parent=None):
-        self.__organizer = organizer
-
-        self.__ready = False
-        self.__deploy_worker = None
-        self.__refresh_worker = None
-        self.__cpucount = max(1, multiprocessing.cpu_count() - 1)
-        self.__symlink = organizer.pluginSetting(parent.name(), "symlink")
-
+    def __init__(
+        self, organizer: mobase.IOrganizer, parent: Optional[QtWidgets.QWidget] = None
+    ) -> None:
         super(PluginWindow, self).__init__(None)
 
-        self.resize(800, 800)
+        self.__organizer = organizer
+        self.__deploy_worker: Optional[DeployWorker] = None
+        self.__symlink = organizer.pluginSetting(parent.name(), "symlink") == "true"
+
+        self.init_ui()
+
+    def init_ui(self) -> None:
+        self.resize(800, 400)
         self.setWindowIcon(QtGui.QIcon(":/deorder/link_deploy"))
         self.setWindowFlags(self.windowFlags() & ~qtWindowContextHelpButtonHint)
 
-        # Vertical Layout
-        verticalLayout = QtWidgets.QVBoxLayout()
+        vertical_layout = QtWidgets.QVBoxLayout()
 
-        self.__targetDir = organizer.managedGame().dataDirectory().absolutePath()
-        # TODO: The following is not used yet
-        self.__originalDir = (
-            organizer.managedGame().dataDirectory().absolutePath() + "Original"
-        )
-
-        # Vertical Layout -> Original Label
         self.noteLabel = QtWidgets.QLabel(self)
         self.noteLabel.setText(
             self.__tr(
                 """
-Warning: This tool will deploy your modlist to the data directory using {}.
-Note: (Un/re)depolying is not yet supported meaning you will have to reinstall the game if you want to start fresh.
+Warning: This tool will deploy your modlist using {}.
 Note: that there is also no guarantee that the game will not touch and modify your mod files.
-Tip: Convert your data directory (Example: <Skyrim Game Dir>/data) to a mod
-        """.format(
+Note: (Un/re)deploying is not supported meaning you will have to reinstall the game if you want to start fresh.
+                """.format(
                     self.__tr("soft links")
                     if self.__symlink
                     else self.__tr("hard links")
                 )
             )
         )
+        vertical_layout.addWidget(self.noteLabel)
 
-        verticalLayout.addWidget(self.noteLabel)
-
-        # Vertical Layout -> Target Label
-        self.targetDirLabel = QtWidgets.QLabel(self)
-        self.targetDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
-        self.targetDirLabel.setText(
-            self.__tr("Deployment dir") + ":\n" + self.__targetDir
+        self.documentsDirLabel = QtWidgets.QLabel(self)
+        self.documentsDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
+        self.documentsDirLabel.setText(
+            self.__tr("Documents dir")
+            + ":\n"
+            + self.__organizer.managedGame().documentsDirectory().absolutePath()
         )
+        vertical_layout.addWidget(self.documentsDirLabel)
 
-        verticalLayout.addWidget(self.targetDirLabel)
+        self.documentsTargetDirectory = QtWidgets.QLabel(self)
+        self.documentsTargetDirectory.setText(self.__tr("Documents target dir:"))
+        vertical_layout.addWidget(self.documentsTargetDirectory)
 
-        # Vertical Layout -> Original Label
-        # self.originalDirLabel = QtWidgets.QLabel(self)
-        # self.originalDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
-        # self.originalDirLabel.setText(self.__tr("Original dir") + ":\n" + self.__originalDir)
+        self.documentsTargetDirEdit = QtWidgets.QLineEdit(self)
+        self.documentsTargetDirEdit.setText(
+            self.__organizer.managedGame().documentsDirectory().absolutePath()
+            + " "
+            + self.__organizer.profileName()
+        )
+        vertical_layout.addWidget(self.documentsTargetDirEdit)
 
-        # verticalLayout.addWidget(self.originalDirLabel)
+        self.saveDirLabel = QtWidgets.QLabel(self)
+        self.saveDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
+        self.saveDirLabel.setText(
+            self.__tr("Save dir")
+            + ":\n"
+            + self.__organizer.managedGame().savesDirectory().absolutePath()
+        )
+        vertical_layout.addWidget(self.saveDirLabel)
 
-        # Vertical Layout -> Mapping List
-        self.mappingList = QtWidgets.QTreeWidget()
+        self.saveTargetDirectory = QtWidgets.QLabel(self)
+        self.saveTargetDirectory.setText(self.__tr("Saves target dir:"))
+        vertical_layout.addWidget(self.saveTargetDirectory)
 
-        self.mappingList.setColumnCount(1)
-        self.mappingList.setRootIsDecorated(False)
-        self.mappingList.setAlternatingRowColors(True)
+        if (
+            self.__organizer.managedGame()
+            .savesDirectory()
+            .absolutePath()
+            .startswith(
+                self.__organizer.managedGame().documentsDirectory().absolutePath()
+            )
+        ):
+            documents_dir = (
+                self.__organizer.managedGame().documentsDirectory().absolutePath()
+                + " "
+                + self.__organizer.profileName()
+            )
+            save_dir = (
+                self.__organizer.managedGame()
+                .documentsDirectory()
+                .relativeFilePath(
+                    self.__organizer.managedGame().savesDirectory().absolutePath()
+                )
+            )
+            self.saveTargetDirEdit = QtWidgets.QLineEdit(self)
+            self.saveTargetDirEdit.setText(documents_dir + "/" + save_dir)
+        else:
+            self.saveTargetDirEdit = QtWidgets.QLineEdit(self)
+            self.saveTargetDirEdit.setText(
+                self.__organizer.managedGame().savesDirectory().absolutePath()
+                + " "
+                + self.__organizer.profileName()
+            )
+        vertical_layout.addWidget(self.saveTargetDirEdit)
 
-        self.mappingList.header().setVisible(True)
-        self.mappingList.headerItem().setText(0, self.__tr("File"))
-        # self.mappingList.headerItem().setText(1, self.__tr("Status"))
+        self.gameDirLabel = QtWidgets.QLabel(self)
+        self.gameDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
+        self.gameDirLabel.setText(
+            self.__tr("Game dir")
+            + ":\n"
+            + self.__organizer.managedGame().gameDirectory().absolutePath()
+        )
+        vertical_layout.addWidget(self.gameDirLabel)
 
-        verticalLayout.addWidget(self.mappingList)
+        self.gameTargetDirLabel = QtWidgets.QLabel(self)
+        self.gameTargetDirLabel.setText(self.__tr("Game target dir:"))
+        vertical_layout.addWidget(self.gameTargetDirLabel)
 
-        # Vertical Layout -> Status Label
+        self.gameTargetDirEdit = QtWidgets.QLineEdit(self)
+        self.gameTargetDirEdit.setText(
+            self.__organizer.managedGame().gameDirectory().absolutePath()
+            + " "
+            + self.__organizer.profileName()
+        )
+        vertical_layout.addWidget(self.gameTargetDirEdit)
+
+        self.dataDirLabel = QtWidgets.QLabel(self)
+        self.dataDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
+        self.dataDirLabel.setText(
+            self.__tr("Data dir")
+            + ":\n"
+            + self.__organizer.managedGame().dataDirectory().absolutePath()
+        )
+        vertical_layout.addWidget(self.dataDirLabel)
+
+        self.dataTargetDirLabel = QtWidgets.QLabel(self)
+        self.dataTargetDirLabel.setText(self.__tr("Data target dir:"))
+        vertical_layout.addWidget(self.dataTargetDirLabel)
+
+        if (
+            self.__organizer.managedGame()
+            .dataDirectory()
+            .absolutePath()
+            .startswith(self.__organizer.managedGame().gameDirectory().absolutePath())
+        ):
+            game_dir = (
+                self.__organizer.managedGame().gameDirectory().absolutePath()
+                + " "
+                + self.__organizer.profileName()
+            )
+            data_dir = (
+                self.__organizer.managedGame()
+                .gameDirectory()
+                .relativeFilePath(
+                    self.__organizer.managedGame().dataDirectory().absolutePath()
+                )
+            )
+            self.dataTargetDirEdit = QtWidgets.QLineEdit(self)
+            self.dataTargetDirEdit.setText(game_dir + "/" + data_dir)
+        else:
+            self.dataTargetDirEdit = QtWidgets.QLineEdit(self)
+            self.dataTargetDirEdit.setText(
+                self.__organizer.managedGame().dataDirectory().absolutePath()
+                + " "
+                + self.__organizer.profileName()
+            )
+        vertical_layout.addWidget(self.dataTargetDirEdit)
+
+        self.modsDirLabel = QtWidgets.QLabel(self)
+        self.modsDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
+        self.modsDirLabel.setText(
+            self.__tr("Mods dir") + ":\n" + self.__organizer.modsPath()
+        )
+        vertical_layout.addWidget(self.modsDirLabel)
+
+        self.overwriteDirLabel = QtWidgets.QLabel(self)
+        self.overwriteDirLabel.setFrameStyle(QFramePanel | QFrameSunken)
+        self.overwriteDirLabel.setText(
+            self.__tr("Overwrite dir") + ":\n" + self.__organizer.overwritePath()
+        )
+        vertical_layout.addWidget(self.overwriteDirLabel)
+
+        self.redirectRootCheckbox = QtWidgets.QCheckBox(
+            self.__tr("Redirect 'root' subdirectories in mods to game dir"),
+            self,
+        )
+        self.redirectRootCheckbox.setChecked(True)
+        vertical_layout.addWidget(self.redirectRootCheckbox)
+
         self.statusLabel = QtWidgets.QLabel(self)
         self.statusLabel.setFrameStyle(QFramePanel | QFrameSunken)
         self.statusLabel.setText("...")
+        vertical_layout.addWidget(self.statusLabel)
 
-        verticalLayout.addWidget(self.statusLabel)
+        button_layout = QtWidgets.QHBoxLayout()
 
-        # Vertical Layout -> Button Layout
-        buttonLayout = QtWidgets.QHBoxLayout()
-
-        # Vertical Layout -> Button Layout -> Deploy Button
         self.__deployButton = QtWidgets.QPushButton(self.__tr("&Deploy"), self)
         self.__deployButton.setIcon(QtGui.QIcon(":/MO/gui/refresh"))
         self.__deployButton.clicked.connect(self._deploy)
-        self.__deployButton.setDisabled(True)
-        buttonLayout.addWidget(self.__deployButton)
+        button_layout.addWidget(self.__deployButton)
 
-        # Vertical Layout -> Button Layout -> Close Button
         closeButton = QtWidgets.QPushButton(self.__tr("&Close"), self)
         closeButton.clicked.connect(self._close)
-        buttonLayout.addWidget(closeButton)
+        button_layout.addWidget(closeButton)
 
-        verticalLayout.addLayout(buttonLayout)
+        vertical_layout.addLayout(button_layout)
+        self.setLayout(vertical_layout)
 
-        # Vertical Layout
-        self.setLayout(verticalLayout)
-
-        # Initial refresh
-        self._refreshList()
-
-    def _deploy(self):
+    def _deploy(self) -> None:
         self.statusLabel.setText(self.__tr("Deploying links. Please wait..."))
 
-        entries = []
-        root = self.mappingList.invisibleRootItem()
-        for item_index in range(root.childCount()):
-            entry = root.child(item_index).data(0, qtUserRole)
-            entry["item_index"] = item_index
-            entries.append(entry)
-        self.__deploy_worker = DeployWorker(
-            self.__organizer,
-            self.__targetDir,
-            self.__originalDir,
-            self.__symlink,
-            entries,
-            self,
-        )
+        entries_generator = generateEntries(self.__organizer)
 
-        def set_item_status_callback(result):
-            entry = result["entry"]
-            status = result["status"]
-            filepath = entry["filepath"]
-            item_index = entry["item_index"]
-            item = root.child(item_index)
-            if status == "already deployed":
-                item.setBackground(0, Dc.yellow)
-            if status == "linked":
-                item.setBackground(0, Dc.green)
-            if status == "failed":
-                item.setBackground(0, Dc.red)
-            item.setForeground(0, qtBlack)
-            self.statusLabel.setText(
-                self.__tr("{} {}").format(filepath, self.__tr(status))
+        for entry in entries_generator:
+            qInfo(
+                QCoreApplication.translate("LinkDeploy", "Found file {}/{}")
+                .format(entry.filepath, entry.filetreeentry.path())
+                .encode("utf-8")
             )
 
-        def finished_callback():
-            self.statusLabel.setText(self.__tr("Finished deployment."))
-            self.__deployButton.setDisabled(True)
+        # self.__deploy_worker = DeployWorker(
+        #     self.__organizer,
+        #     self.dataTargetDirEdit.text(),
+        #     self.gameTargetDirEdit.text(),
+        #     self.__symlink,
+        #     self.redirectRootCheckbox.isChecked(),
+        #     entries_generator,
+        #     self,
+        # )
 
-        self.__deploy_worker.set_item_status_signal.connect(set_item_status_callback)
-        self.__deploy_worker.finished_signal.connect(finished_callback)
+        # self.__deploy_worker.message_signal.connect(self._message_handler)
+        # self.__deploy_worker.finish_signal.connect(self._finish_handler)
 
-        self.__deploy_worker.start()
+        # self.__deploy_worker.start()
 
-    def _refreshList(self):
-        self.mappingList.clear()
+    def _message_handler(self, result: Dict[str, str]) -> None:
+        entry = result["entry"]
+        status = result["status"]
+        filepath = entry["filepath"]
+        self.statusLabel.setText(self.__tr("{} {}").format(filepath, self.__tr(status)))
+        if status == "failed":
+            qWarning(self.__tr("Failed linking: {}").format(filepath).encode("utf-8"))
+        if status == "skipped":
+            qInfo(self.__tr("Skipped linking: {}").format(filepath).encode("utf-8"))
 
-        self.__refresh_worker = RefreshListWorker(self.__organizer, self)
+    def _finish_handler(self) -> None:
+        self.statusLabel.setText(self.__tr("Finished deployment."))
+        self.__deployButton.setDisabled(True)
 
-        self.statusLabel.setText(self.__tr("Populating list. Please wait..."))
-
-        def add_item_callback(filepath):
-            item = QtWidgets.QTreeWidgetItem(self.mappingList, [filepath, "..."])
-            item.setData(0, qtUserRole, {"filepath": str(filepath)})
-            self.mappingList.addTopLevelItem(item)
-
-        def finished_callback():
-            self.statusLabel.setText(self.__tr("Ready for deployment."))
-            self.mappingList.resizeColumnToContents(0)
-            self.__deployButton.setDisabled(False)
-
-        self.__refresh_worker.add_item_signal.connect(add_item_callback)
-        self.__refresh_worker.finished_signal.connect(finished_callback)
-
-        self.__refresh_worker.start()
-
-    def _close(self):
-        if self.__refresh_worker:
-            self.__refresh_worker.stop()
-            self.__refresh_worker.quit()
-            self.__refresh_worker.wait()
-
+    def _close(self) -> None:
         if self.__deploy_worker:
             self.__deploy_worker.stop()
             self.__deploy_worker.quit()
             self.__deploy_worker.wait()
-
         self.close()
 
 
 class PluginTool(mobase.IPluginTool):
-
-    __organizer: mobase.IOrganizer
-
     NAME = "Link Deploy"
-    DESCRIPTION = "Deploy mods using hard links."
+    DESCRIPTION = "Deploy mods using hard or soft links."
 
-    def __tr(self, str):
-        return QCoreApplication.translate("LinkDeploy", str)
+    def __init__(self) -> None:
+        super().__init__()
+        self.__window: Optional[PluginWindow] = None
+        self.__organizer: Optional[mobase.IOrganizer] = None
 
-    def __init__(self):
-        self.__window = None
-        self.__organizer = None
-        self.__parentWidget = None
+    def __tr(self, text: str) -> str:
+        return QCoreApplication.translate("LinkDeploy", text)
 
-        super(PluginTool, self).__init__()
-
-    def init(self, organizer):
+    def init(self, organizer: mobase.IOrganizer) -> bool:
         from . import resources  # noqa
 
         self.__organizer = organizer
         return bool(self.__organizer.pluginSetting(self.NAME, "agree"))
 
-    def settings(self):
+    def settings(self) -> List[mobase.PluginSetting]:
         return [
             mobase.PluginSetting("enabled", self.__tr("Enable plugin"), False),
             mobase.PluginSetting(
@@ -485,31 +518,28 @@ class PluginTool(mobase.IPluginTool):
             ),
         ]
 
-    def display(self):
+    def display(self) -> None:
         self.__window = PluginWindow(self.__organizer, self)
         self.__window.setWindowTitle(self.NAME)
         self.__window.exec()
 
-    def icon(self):
+    def icon(self) -> QtGui.QIcon:
         return QtGui.QIcon(":/deorder/link_deploy")
 
-    def setParentWidget(self, widget):
-        self.__parentWidget = widget
+    def version(self) -> mobase.VersionInfo:
+        return mobase.VersionInfo(1, 1, 0, mobase.ReleaseType.final)
 
-    def version(self):
-        return mobase.VersionInfo(1, 0, 0, mobase.ReleaseType.final)
-
-    def description(self):
+    def description(self) -> str:
         return self.__tr(self.DESCRIPTION)
 
-    def tooltip(self):
+    def tooltip(self) -> str:
         return self.__tr(self.DESCRIPTION)
 
-    def displayName(self):
+    def displayName(self) -> str:
         return self.__tr(self.NAME)
 
-    def name(self):
+    def name(self) -> str:
         return self.NAME
 
-    def author(self):
+    def author(self) -> str:
         return "Deorder"
