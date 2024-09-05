@@ -9,7 +9,7 @@ This repository contains two Mod Organizer 2 plugins:
 
 ## Installation
 
-1. Download the latest `.zip` file from the [Releases](https://github.com/your-repo/releases) page.
+1. Download the latest `.zip` file from the [Releases](https://github.com/deorder/mo2-plugins/releases) page.
 2. Extract the contents into Mod Organizer 2's `plugins/` folder.
 3. Rename the extracted folder to avoid potential errors (e.g., `deorder`).
 4. The plugins will appear in the `Tools` menu (puzzle piece icon) within Mod Organizer 2.
@@ -33,25 +33,22 @@ This plugin allows you to synchronize mod orders between profiles while maintain
 
 ### Prerequisites
 - Python 3.12 or newer
-- Qt 6.x or newer (installed in `C:\Qt`)
 
 ### First-Time Setup
-1. Install Qt from: https://www.qt.io/download-qt-installer
-   Make sure to install it in `C:\Qt`.
-2. Open a terminal in the project directory.
-3. Create a virtual environment:
+1. Open a terminal in the project directory.
+2. Create a virtual environment:
    ```
    python3 -m venv .venv
    ```
-4. Activate the virtual environment:
+3. Activate the virtual environment:
    ```
    .\.venv\Scripts\Activate.ps1
    ```
-5. Install required packages:
+4. Install required packages:
    ```
    pip install -r requirements.txt
    ```
-6. Build the resources:
+5. Build the resources:
    ```
    .\build.ps1
    ```

@@ -3,26 +3,26 @@ import glob
 import shutil
 import datetime
 
-import mobase
+import mobase # type: ignore
 from . import common as Dc
 
-import PyQt6.QtGui as QtGui
+import PyQt6.QtGui as QtGui # type: ignore
 
 QAction = QtGui.QAction
 
 
-import PyQt6.QtWidgets as QtWidgets
+import PyQt6.QtWidgets as QtWidgets # type: ignore
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt # type: ignore
 
 qtUserRole = Qt.ItemDataRole.UserRole
 qtScrollBarAlwaysOff = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
 qtCustomContextMenu = Qt.ContextMenuPolicy.CustomContextMenu
 qtWindowContextHelpButtonHint = Qt.WindowType.WindowContextHelpButtonHint
 
-from PyQt6.QtCore import qDebug, qCritical
+from PyQt6.QtCore import qDebug, qCritical # type: ignore
 
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication # type: ignore
 
 
 class PluginWindow(QtWidgets.QDialog):
