@@ -1,9 +1,9 @@
 import os
 import re
 
-from PyQt6 import QtGui # type: ignore
+from PyQt6 import QtGui  # type: ignore
 
-from PyQt6.QtCore import qDebug, qWarning # type: ignore
+from PyQt6.QtCore import qDebug, qWarning  # type: ignore
 
 red = QtGui.QColor(255, 170, 170)
 green = QtGui.QColor(205, 222, 135)

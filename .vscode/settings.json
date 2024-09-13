@@ -1,6 +1,3 @@
 {
-  "qtForPython.rcc.options": [
-    "-o",
-    "${resourceDirname}${pathSeparator}${resourceBasenameNoExtension}.py"
-  ]
+  "editor.formatOnSave": true
 }

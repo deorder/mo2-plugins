@@ -3,20 +3,20 @@ import glob
 import json
 import traceback
 
-import mobase # type: ignore
+import mobase  # type: ignore
 from . import common as Dc
 
-import PyQt6.QtGui as QtGui # type: ignore
+import PyQt6.QtGui as QtGui  # type: ignore
 
 QAction = QtGui.QAction
 
-import PyQt6.QtWidgets as QtWidgets # type: ignore
+import PyQt6.QtWidgets as QtWidgets  # type: ignore
 
 QAbstractItemViewExtendedSelection = (
     QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
 )
 
-from PyQt6.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication # type: ignore
+from PyQt6.QtCore import Qt, qDebug, qWarning, qCritical, QCoreApplication  # type: ignore
 
 qtBlack = Qt.GlobalColor.black
 qtUserRole = Qt.ItemDataRole.UserRole

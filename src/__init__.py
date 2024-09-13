@@ -1,5 +1,5 @@
 from . import merge_plugins_hide, sync_mod_order, link_deploy
-import mobase # type: ignore
+import mobase  # type: ignore
 
 
 def createPlugins() -> list[mobase.IPlugin]:

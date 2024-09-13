@@ -1,3 +1,4 @@
+click==8.1.7
 mobase-stubs==2.5.*
 pyqt6-stubs @ git+https://github.com/python-qt-tools/PyQt6-stubs
 scour==0.38.*
