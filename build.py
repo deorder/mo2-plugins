@@ -10,7 +10,7 @@ import subprocess
     "--target",
     type=click.Choice(["merge-plugins-hide", "sync-mod-order", "link-deploy", "all"]),
     help="The target plugin to build",
-    default="merge-plugins-hide",
+    default="all",
     prompt="Select the plugin to build",
 )
 @click.option(

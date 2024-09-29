@@ -42,7 +42,11 @@ This plugin allows you to synchronize mod orders between profiles while maintain
    ```
 3. Activate the virtual environment:
    ```
+   On Windows:
    .\.venv\Scripts\Activate.ps1
+
+   On Linux:
+   source .venv/bin/activate
    ```
 4. Install required packages:
    ```
@@ -50,17 +54,21 @@ This plugin allows you to synchronize mod orders between profiles while maintain
    ```
 5. Build the resources:
    ```
-   .\build.ps1
+   python build.py
    ```
 
 ### Subsequent Builds
 1. Activate the virtual environment (if not already activated):
    ```
+   On Windows:
    .\.venv\Scripts\Activate.ps1
+
+   On Linux:
+   source .venv/bin/activate
    ```
 2. Run the build script:
    ```
-   .\build.ps1
+   python build.py
    ```
 
 This will compile the necessary resources for the plugins.
