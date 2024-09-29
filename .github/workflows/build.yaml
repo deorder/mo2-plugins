@@ -1,0 +1,43 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag"
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build merge-plugins-hide
+        run: python build.py --target merge-plugins-hide --zip
+
+      - name: Build sync-mod-order
+        run: python build.py --target sync-mod-order --zip
+
+      - name: Build link-deploy
+        run: python build.py --target link-deploy --zip
+
+      - name: Build bundle
+        run: python build.py --target all --zip
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1.14.0
+        with:
+          tag: ${{ github.event.inputs.tag }}
+          artifacts: target/*.zip

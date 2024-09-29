@@ -1,9 +1,5 @@
-black==24.8.0
 click==8.1.7
-colorama==0.4.6
 mobase-stubs==2.5.*
-mypy-extensions==1.0.0
-pathspec==0.12.1
-platformdirs==4.2.2
 pyqt6-stubs @ git+https://github.com/python-qt-tools/PyQt6-stubs
-tomli==2.0.1
+scour==0.38.*
+PySide6==6.7.*

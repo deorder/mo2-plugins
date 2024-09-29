@@ -6,20 +6,19 @@ import concurrent.futures
 import pathlib
 from typing import Dict, Generator, List, Optional
 
-import mobase
-from . import common as Dc
+import mobase  # type: ignore
 
-import PyQt6.QtGui as QtGui
+import PyQt6.QtGui as QtGui  # type: ignore
 
-from PyQt6.QtCore import qInfo
+from PyQt6.QtCore import qInfo  # type: ignore
 
-import PyQt6.QtWidgets as QtWidgets
+import PyQt6.QtWidgets as QtWidgets  # type: ignore
 
 
 QFramePanel = QtWidgets.QFrame.Shape.Panel
 QFrameSunken = QtWidgets.QFrame.Shadow.Sunken
 
-from PyQt6.QtCore import (
+from PyQt6.QtCore import (  # type: ignore
     Qt,
     QThread,
     pyqtSignal,
