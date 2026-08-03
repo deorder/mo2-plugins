@@ -271,21 +271,28 @@ class PluginWindow(QtWidgets.QDialog):
         for pattern in patterns:
             for path in glob.glob(os.path.join(Dc.globEscape(modPath), pattern)):
                 if self.__hide_type == "mohidden":
+                    # We need to store lowercase filename as a key in dict to properly compare/fetch data.
+                    # But filename stored inside dict value should be as is (without lowercase).
+                    # Otherwise on case-sensitive to search filesystems like ext4 we will gate false on file search.
+                    # Like here `os.path.isfile(os.path.join(mod["dirname"], pluginInfo["filename"]))` will return False
+                    # if real file is not all lowercase
                     filename = os.path.basename(path).replace(".mohidden", "")
-                    if filename in self.__pluginInfo:
-                        self.__pluginInfo[filename.lower()]["mods"] += [mod]
+                    normalized_filename = filename.lower()
+                    if normalized_filename in self.__pluginInfo:
+                        self.__pluginInfo[normalized_filename]["mods"] += [mod]
                     else:
-                        self.__pluginInfo[filename.lower()] = {
-                            "filename": os.path.basename(path).replace(".mohidden", ""),
+                        self.__pluginInfo[normalized_filename] = {
+                            "filename": filename,
                             "mods": [mod],
                         }
                 if self.__hide_type in ["optional", "disable"]:
                     filename = os.path.basename(path)
-                    if filename in self.__pluginInfo:
-                        self.__pluginInfo[filename.lower()]["mods"] += [mod]
+                    normalized_filename = filename.lower()
+                    if normalized_filename in self.__pluginInfo:
+                        self.__pluginInfo[normalized_filename]["mods"] += [mod]
                     else:
-                        self.__pluginInfo[filename.lower()] = {
-                            "filename": os.path.basename(path),
+                        self.__pluginInfo[normalized_filename] = {
+                            "filename": filename,
                             "mods": [mod],
                         }
 
